@@ -1,0 +1,250 @@
+import test, { before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+const root = path.resolve(import.meta.dirname, '..');
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bf-test-'));
+const port = 3900 + Math.floor(Math.random() * 90);
+const base = `http://127.0.0.1:${port}`;
+const ADMIN = { email: 'admin@test.local', password: 'TestAdmin123!' };
+let server;
+
+before(async () => {
+  server = spawn('node', ['server/index.mjs'], {
+    cwd: root,
+    env: {
+      ...process.env,
+      PORT: String(port),
+      DATA_DIR: dataDir,
+      JWT_SECRET: 'test-secret',
+      ADMIN_EMAIL: ADMIN.email,
+      ADMIN_PASSWORD: ADMIN.password,
+      NODE_ENV: 'test',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('serveur non démarré')), 20000);
+    server.stdout.on('data', (chunk) => {
+      if (String(chunk).includes('http://localhost')) {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+    server.stderr.on('data', (chunk) => process.stderr.write(chunk));
+  });
+});
+
+after(() => {
+  server?.kill('SIGTERM');
+  fs.rmSync(dataDir, { recursive: true, force: true });
+});
+
+function client() {
+  let cookie = '';
+  return async function call(pathname, { method = 'GET', body } = {}) {
+    const res = await fetch(base + pathname, {
+      method,
+      headers: {
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(cookie ? { Cookie: cookie } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const setCookie = res.headers.getSetCookie?.() || [];
+    if (setCookie.length) cookie = setCookie.map((c) => c.split(';')[0]).join('; ');
+    const text = await res.text();
+    let json = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = null;
+    }
+    return { status: res.status, json, text };
+  };
+}
+
+const anon = client();
+const reader = client();
+const admin = client();
+
+test('santé de l’API', async () => {
+  const { status, json } = await anon('/api/health');
+  assert.equal(status, 200);
+  assert.equal(json.ok, true);
+});
+
+test('catalogue : 3 romans, 36 chapitres, 2 offerts par roman', async () => {
+  const { status, json } = await anon('/api/books');
+  assert.equal(status, 200);
+  assert.equal(json.books.length, 3);
+  assert.deepEqual(json.books.map((b) => b.chaptersTotal).sort((a, b) => a - b), [6, 10, 20]);
+  for (const book of json.books) {
+    assert.equal(book.chaptersFree, 2);
+    assert.equal(book.priceXof, 300);
+  }
+});
+
+test('coordonnées publiques réelles', async () => {
+  const { json } = await anon('/api/site');
+  assert.equal(json.contactEmail, 'alexandregnankou@gmail.com');
+  assert.equal(json.contactPhone, '+225 0703025007');
+  assert.equal(json.orangeNumber, '0706486904');
+  assert.match(json.waveLink, /pay\.wave\.com/);
+});
+
+test('chapitre 1 offert sans compte', async () => {
+  const { status, json } = await anon('/api/books/les-larmes-d-une-plume/chapters/1');
+  assert.equal(status, 200);
+  assert.equal(json.locked, false);
+  assert.ok(json.chapter.text.length > 500);
+});
+
+test('chapitre payant verrouillé → 402 avec instruction de paiement', async () => {
+  await admin('/api/auth/login', { method: 'POST', body: ADMIN });
+  const books = await admin('/api/admin/books');
+  const book = books.json.books.find((b) => b.slug === 'les-larmes-d-une-plume');
+  const chapters = await admin(`/api/admin/books/${book.id}/chapters`);
+  const chapter = chapters.json.chapters.find((c) => c.number === 3);
+  await admin(`/api/admin/chapters/${chapter.id}`, {
+    method: 'PATCH',
+    body: { status: 'published', text: 'Chapitre trois de démonstration pour le test du verrou.' },
+  });
+
+  const { status, json } = await anon('/api/books/les-larmes-d-une-plume/chapters/3');
+  assert.equal(status, 402);
+  assert.equal(json.locked, true);
+  assert.equal(json.paywall.priceXof, 300);
+  assert.equal(json.chapter.text, undefined);
+});
+
+test('inscription lecteur puis achat Wave en attente', async () => {
+  const reg = await reader('/api/auth/register', {
+    method: 'POST',
+    body: { email: 'lecteur@test.ci', password: 'MotDePasse123', name: 'Lecteur Test' },
+  });
+  assert.equal(reg.status, 201);
+  assert.equal(reg.json.user.role, 'reader');
+
+  const buy = await reader('/api/me/purchases', {
+    method: 'POST',
+    body: { bookSlug: 'les-larmes-d-une-plume', chapterNumber: 3, method: 'wave_link' },
+  });
+  assert.equal(buy.status, 201);
+  assert.match(buy.json.order.reference, /^BF-\d{4}-[A-F0-9]{8}$/);
+  assert.equal(buy.json.instructions.amountXof, 300);
+
+  const again = await reader('/api/me/purchases', {
+    method: 'POST',
+    body: { bookSlug: 'les-larmes-d-une-plume', chapterNumber: 3, method: 'wave_link' },
+  });
+  assert.equal(again.json.reused, true);
+  assert.equal(again.json.order.reference, buy.json.order.reference);
+});
+
+test('achat ignoré tant que le chapitre n’est pas publié', async () => {
+  const { status } = await reader('/api/me/purchases', {
+    method: 'POST',
+    body: { bookSlug: 'les-larmes-d-une-plume', chapterNumber: 5, method: 'wave_link' },
+  });
+  assert.equal(status, 404);
+});
+
+test('validation administrateur → chapitre ouvert pour le lecteur', async () => {
+  const pending = await admin('/api/admin/orders?status=pending');
+  assert.equal(pending.json.orders.length, 1);
+  const order = pending.json.orders[0];
+  const validated = await admin(`/api/admin/orders/${order.id}/validate`, { method: 'POST', body: {} });
+  assert.equal(validated.status, 200);
+
+  const chapter = await reader('/api/books/les-larmes-d-une-plume/chapters/3');
+  assert.equal(chapter.status, 200);
+  assert.equal(chapter.json.locked, false);
+  assert.ok(chapter.json.chapter.text.length > 10);
+
+  const purchases = await reader('/api/me/purchases');
+  assert.equal(purchases.json.purchases[0].status, 'paid');
+});
+
+test('un lecteur ne peut pas valider un paiement', async () => {
+  const { status } = await reader('/api/admin/orders/1/validate', { method: 'POST', body: {} });
+  assert.equal(status, 403);
+});
+
+test('formulaire de contact → message dans la console', async () => {
+  const sent = await anon('/api/contact', {
+    method: 'POST',
+    body: { name: 'Awa', email: 'awa@example.ci', subject: 'Paiement', body: 'Bonjour, mon paiement Wave est passé hier.' },
+  });
+  assert.equal(sent.status, 201);
+  const messages = await admin('/api/admin/messages');
+  assert.ok(messages.json.messages.some((m) => m.email === 'awa@example.ci'));
+});
+
+test('import d’un manuscrit : découpage sur « Chapitre N »', async () => {
+  const created = await admin('/api/admin/books', {
+    method: 'POST',
+    body: { title: 'Roman Partenaire', author: 'Auteur Partenaire', categoryName: 'Nouvelle', priceXof: 250 },
+  });
+  assert.equal(created.status, 201);
+  const id = created.json.book.id;
+
+  const manuscript = `Chapitre 1\n\nPremier paragraphe du roman.\n\nChapitre 2\n\nDeuxième paragraphe.\n\nCHAPITRE 3\n\nTroisième et dernier paragraphe.`;
+  const imported = await admin(`/api/admin/books/${id}/import`, {
+    method: 'POST',
+    body: { text: manuscript, mode: 'replace' },
+  });
+  assert.equal(imported.status, 200);
+  assert.equal(imported.json.imported, 3);
+
+  const chapters = await admin(`/api/admin/books/${id}/chapters`);
+  assert.deepEqual(chapters.json.chapters.map((c) => c.number), [1, 2, 3]);
+  assert.equal(chapters.json.chapters[0].isFree, true);
+  assert.equal(chapters.json.chapters[2].isFree, false);
+});
+
+test('réglages : modification répercutée sur /api/site', async () => {
+  await admin('/api/admin/settings', { method: 'PATCH', body: { priceXof: '350', contactPhone: '+225 0102030405' } });
+  const site = await anon('/api/site');
+  assert.equal(site.json.priceXof, 350);
+  assert.equal(site.json.contactPhone, '+225 0102030405');
+});
+
+test('changement de mot de passe puis reconnexion', async () => {
+  const changed = await reader('/api/auth/password', {
+    method: 'POST',
+    body: { currentPassword: 'MotDePasse123', newPassword: 'NouveauMotDePasse456' },
+  });
+  assert.equal(changed.status, 200);
+
+  const other = client();
+  const oldLogin = await other('/api/auth/login', {
+    method: 'POST',
+    body: { email: 'lecteur@test.ci', password: 'MotDePasse123' },
+  });
+  assert.equal(oldLogin.status, 401);
+
+  const fresh = client();
+  const newLogin = await fresh('/api/auth/login', {
+    method: 'POST',
+    body: { email: 'lecteur@test.ci', password: 'NouveauMotDePasse456' },
+  });
+  assert.equal(newLogin.status, 200);
+});
+
+test('page publique rendue par le serveur', async () => {
+  const res = await fetch(base + '/');
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /BOOK FOREVER/);
+  assert.match(html, /<div id="root">/);
+});
+
+test('service worker jamais mis en cache', async () => {
+  const res = await fetch(base + '/sw.js');
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('cache-control') || '', /no-cache/);
+});

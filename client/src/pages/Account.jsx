@@ -1,0 +1,166 @@
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { api, formatDate, formatXof, METHOD_LABELS, STATUS_LABELS } from '../api.js';
+import { useSession } from '../session.jsx';
+
+export default function Account() {
+  const { user, ready, logout } = useSession();
+  const navigate = useNavigate();
+  const [tab, setTab] = useState('lectures');
+  const [purchases, setPurchases] = useState([]);
+  const [reading, setReading] = useState([]);
+  const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
+
+  useEffect(() => {
+    if (ready && !user) navigate('/connexion?next=/compte');
+  }, [ready, user, navigate]);
+
+  useEffect(() => {
+    if (!user) return;
+    api.purchases().then(({ purchases: list }) => setPurchases(list)).catch(() => {});
+    api.progress().then(({ reading: list }) => setReading(list)).catch(() => {});
+  }, [user]);
+
+  if (!ready || !user) return <p className="empty">Chargement…</p>;
+
+  const submitPassword = async (event) => {
+    event.preventDefault();
+    setFeedback({ type: '', message: '' });
+    try {
+      await api.changePassword(passwords);
+      setFeedback({ type: 'ok', message: 'Mot de passe mis à jour.' });
+      setPasswords({ currentPassword: '', newPassword: '' });
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message });
+    }
+  };
+
+  return (
+    <div className="page">
+      <div className="wrap">
+        <div className="page-head">
+          <span className="eyebrow">Mon compte</span>
+          <h1>{user.name || user.email}</h1>
+          <p className="muted">{user.email}</p>
+        </div>
+
+        <div className="tabs">
+          <button type="button" className={tab === 'lectures' ? 'active' : ''} onClick={() => setTab('lectures')}>
+            Reprendre la lecture
+          </button>
+          <button type="button" className={tab === 'achats' ? 'active' : ''} onClick={() => setTab('achats')}>
+            Mes achats
+          </button>
+          <button type="button" className={tab === 'securite' ? 'active' : ''} onClick={() => setTab('securite')}>
+            Mot de passe
+          </button>
+          {user.role === 'admin' && (
+            <Link to="/console" style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: '0.86rem' }}>
+              Console d’administration →
+            </Link>
+          )}
+        </div>
+
+        {tab === 'lectures' && (
+          <div className="panel">
+            {reading.length === 0 ? (
+              <p className="empty">Aucune lecture en cours. <Link to="/bibliotheque">Choisir un roman</Link></p>
+            ) : (
+              reading.map((item) => (
+                <div className="row-item" key={`${item.book.slug}-${item.chapter.number}`}>
+                  <img src={item.book.cover} alt="" />
+                  <div className="grow">
+                    <strong>{item.book.title}</strong>
+                    <span>
+                      Chapitre {item.chapter.number} · {item.chapter.title} — {formatDate(item.updatedAt)}
+                    </span>
+                  </div>
+                  <Link to={`/lire/${item.book.slug}/${item.chapter.number}`} className="btn btn-ghost btn-sm">
+                    Reprendre
+                  </Link>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === 'achats' && (
+          <div className="panel">
+            {purchases.length === 0 ? (
+              <p className="empty">Aucun achat pour le moment.</p>
+            ) : (
+              purchases.map((order) => (
+                <div className="row-item" key={order.id}>
+                  <img src={order.book.cover} alt="" />
+                  <div className="grow">
+                    <strong>
+                      {order.book.title} — chapitre {order.chapter.number}
+                    </strong>
+                    <span>
+                      {order.reference} · {METHOD_LABELS[order.method] || order.method} ·{' '}
+                      {formatXof(order.amountXof)} · {formatDate(order.createdAt)}
+                    </span>
+                  </div>
+                  {order.status === 'paid' ? (
+                    <Link to={`/lire/${order.book.slug}/${order.chapter.number}`} className="btn btn-gold btn-sm">
+                      Lire
+                    </Link>
+                  ) : (
+                    <span className={`pill ${order.status === 'pending' ? '' : 'warn'}`}>
+                      {STATUS_LABELS[order.status] || order.status}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === 'securite' && (
+          <div className="panel" style={{ maxWidth: 460 }}>
+            {feedback.message && <div className={`alert ${feedback.type}`}>{feedback.message}</div>}
+            <form onSubmit={submitPassword}>
+              <div className="field">
+                <label htmlFor="current">Mot de passe actuel</label>
+                <input
+                  id="current"
+                  type="password"
+                  required
+                  value={passwords.currentPassword}
+                  onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="next">Nouveau mot de passe</label>
+                <input
+                  id="next"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={passwords.newPassword}
+                  onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
+                />
+              </div>
+              <button type="submit" className="btn btn-gold">
+                Enregistrer
+              </button>
+            </form>
+            <p style={{ marginTop: 20 }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={async () => {
+                  await logout();
+                  navigate('/');
+                }}
+              >
+                Se déconnecter
+              </button>
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

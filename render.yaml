@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+# Déploiement Render — BOOK FOREVER
+#
+# 1. Poussez ce dépôt sur GitHub.
+# 2. Render → New → Blueprint → sélectionnez le dépôt.
+# 3. Render demande ADMIN_PASSWORD : saisissez un mot de passe fort.
+# 4. Au premier déploiement, le site est en ligne sur https://book-forever.onrender.com
+#
+# ⚠️ Le plan « free » n'a pas de disque persistant : comptes lecteurs, achats et
+# messages sont perdus à chaque redéploiement. Le catalogue, lui, est toujours
+# reconstitué depuis server/seed/books.json.
+# Pour conserver les ventes : passez le service en plan « starter » et
+# décommentez le bloc « disk » + la variable DATA_DIR ci-dessous (≈ 7 $/mois).
+# ---------------------------------------------------------------------------
+services:
+  - type: web
+    name: book-forever
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install --no-audit --no-fund && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: alexadisenhouse@gmail.com
+      - key: ADMIN_NAME
+        value: ADISEN HOUSE
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CONTACT_EMAIL
+        value: alexandregnankou@gmail.com
+      - key: CONTACT_PHONE
+        value: "+225 0703025007"
+      - key: WAVE_LINK
+        value: https://pay.wave.com/m/M_ci_WwpCpr9rnJw1/c/ci/
+      - key: ORANGE_NUMBER
+        value: "0706486904"
+      - key: PRICE_XOF
+        value: "300"
+      - key: FREE_CHAPTERS
+        value: "2"
+      # - key: DATA_DIR
+      #   value: /var/data
+      # - key: RESEND_API_KEY
+      #   sync: false
+    # disk:
+    #   name: book-forever-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
