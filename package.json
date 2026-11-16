@@ -14,7 +14,8 @@
     "seed": "node server/seed.mjs",
     "test": "node --test tests/*.test.mjs",
     "postinstall": "node scripts/postinstall.mjs",
-    "check:render": "vite build --ssr src/ssr-check.jsx --outDir ../.render-check --emptyOutDir && node .render-check/ssr-check.js"
+    "check:render": "vite build --ssr src/ssr-check.jsx --outDir ../.render-check --emptyOutDir && node .render-check/ssr-check.js",
+    "prestart": "node scripts/ensure-build.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
