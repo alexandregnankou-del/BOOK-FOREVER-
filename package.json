@@ -5,7 +5,7 @@
   "type": "module",
   "description": "BOOK FOREVER — librairie numérique ADISEN (chapitres offerts, déblocage à l'unité)",
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "node --watch server/index.mjs",
