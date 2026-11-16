@@ -27,6 +27,9 @@ export default function Layout() {
             <NavLink to="/bibliotheque" className={({ isActive }) => (isActive ? 'active' : '')}>
               Bibliothèque
             </NavLink>
+            <NavLink to="/telecharger" className={({ isActive }) => (isActive ? 'active' : '')}>
+              Application
+            </NavLink>
             <NavLink to="/installer" className={({ isActive }) => (isActive ? 'active' : '')}>
               <span className="hide-sm">Installer</span>
             </NavLink>
@@ -89,7 +92,8 @@ export default function Layout() {
               <h4>Lire</h4>
               <div className="links">
                 <Link to="/bibliotheque">Tous les romans</Link>
-                <Link to="/installer">Installer l’application</Link>
+                <Link to="/telecharger">Télécharger l’application</Link>
+                <Link to="/installer">Installer en 3 touches</Link>
                 <Link to="/compte">Mes achats</Link>
                 <Link to="/contact">Assistance</Link>
               </div>

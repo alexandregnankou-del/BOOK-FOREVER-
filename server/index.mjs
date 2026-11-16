@@ -24,6 +24,17 @@ app.use('/api/admin', adminRoutes);
 
 app.get('/api', (req, res) => res.json({ name: 'BOOK FOREVER API', version: '1.0.0' }));
 
+/* APK : type MIME Android + téléchargement explicite. */
+app.get('/download/:file', (req, res, next) => {
+  const file = req.params.file;
+  if (!/^[a-z0-9.\-]+\.apk$/i.test(file)) return next();
+  const target = path.join(config.publicDir, 'download', file);
+  if (!fs.existsSync(target)) return next();
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', `attachment; filename="${file}"`);
+  res.sendFile(target);
+});
+
 /* Fichiers statiques : médias, polices, icônes, service worker. */
 app.use(
   express.static(config.publicDir, {

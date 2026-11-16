@@ -1277,3 +1277,95 @@ select {
   white-space: nowrap;
   border: 0;
 }
+
+/* ---------- Téléchargement de l'application ---------- */
+.download-grid {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 1fr;
+  margin: 26px 0;
+}
+@media (min-width: 860px) {
+  .download-grid { grid-template-columns: 1fr 1fr; }
+}
+
+.download-card {
+  padding: 26px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.download-card.wide { margin-bottom: 40px; }
+.download-card h2 {
+  font-family: 'Cormorant', Georgia, serif;
+  font-size: 26px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--text);
+}
+.download-card p { margin: 0; line-height: 1.65; }
+.download-card code {
+  font-size: 12.5px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(201, 162, 39, 0.12);
+  color: var(--gold);
+}
+
+.dl-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  font-size: 17px;
+}
+
+.steps {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.steps li::marker { color: var(--gold); }
+.steps em { color: var(--text); font-style: normal; }
+
+.checklist {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.checklist li {
+  position: relative;
+  padding-left: 24px;
+}
+.checklist li::before {
+  content: '✦';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--gold);
+  font-size: 12px;
+}
+
+.hint {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+  opacity: 0.75;
+  margin: 0;
+}
+.hint a { color: var(--gold); }

@@ -70,3 +70,18 @@ Voir [docs/DEPLOY.md](docs/DEPLOY.md). En résumé : dépôt GitHub → Render (
   réinitialisée à chaque déploiement : voir la section « Données » de `docs/DEPLOY.md`.
 - Les paiements Wave / Orange Money sont vérifiés à la main dans la console (onglet Ventes) :
   aucun chapitre ne s'ouvre sur simple déclaration du lecteur.
+
+## Application Android
+
+`android-app/` contient la coque native (WebView) qui donne l'application installable.
+Elle pointe vers le site : toute mise à jour du site est immédiatement dans l'application.
+
+```bash
+cd android-app
+./build.sh          # aapt2 → javac → d8 → zipalign → apksigner
+# APK : android-app/build/book-forever.apk
+```
+
+L'APK publié est copié dans `public/download/book-forever-1.0.0.apk` et distribué par la page
+`/telecharger` (type MIME `application/vnd.android.package-archive`). Le keystore de signature
+n'est pas versionné : conservez-le pour pouvoir publier des mises à jour.

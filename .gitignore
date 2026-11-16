@@ -7,3 +7,7 @@ data/
 .DS_Store
 backups/
 .render-check/
+
+# sorties de build Android
+android-app/build/
+android-app/keystore/
