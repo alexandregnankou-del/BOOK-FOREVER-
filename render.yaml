@@ -3,6 +3,8 @@
 #
 # 1. Poussez ce dépôt sur GitHub.
 # 2. Render → New → Blueprint → sélectionnez le dépôt.
+#    (Si le service existe déjà : Settings → Build Command
+#     « npm install --include=dev && npm run build », Start Command « npm start »)
 # 3. Render demande ADMIN_PASSWORD : saisissez un mot de passe fort.
 # 4. Au premier déploiement, le site est en ligne sur https://book-forever.onrender.com
 #
@@ -18,7 +20,7 @@ services:
     runtime: node
     plan: free
     region: frankfurt
-    buildCommand: npm install --no-audit --no-fund && npm run build
+    buildCommand: npm install --include=dev --no-audit --no-fund && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
