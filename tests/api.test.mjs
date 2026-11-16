@@ -146,11 +146,28 @@ test('inscription lecteur puis achat Wave en attente', async () => {
 });
 
 test('achat ignoré tant que le chapitre n’est pas publié', async () => {
-  const { status } = await reader('/api/me/purchases', {
+  const books = await admin('/api/admin/books');
+  const book = books.json.books.find((b) => b.slug === 'les-larmes-d-une-plume');
+  const chapters = await admin(`/api/admin/books/${book.id}/chapters`);
+  const target = chapters.json.chapters.find((c) => c.number === 5);
+
+  const off = await admin(`/api/admin/chapters/${target.id}`, {
+    method: 'PATCH',
+    body: { status: 'draft' },
+  });
+  assert.equal(off.status, 200);
+
+  const blocked = await reader('/api/me/purchases', {
     method: 'POST',
     body: { bookSlug: 'les-larmes-d-une-plume', chapterNumber: 5, method: 'wave_link' },
   });
-  assert.equal(status, 404);
+  assert.equal(blocked.status, 404);
+
+  const on = await admin(`/api/admin/chapters/${target.id}`, {
+    method: 'PATCH',
+    body: { status: 'published' },
+  });
+  assert.equal(on.status, 200);
 });
 
 test('validation administrateur → chapitre ouvert pour le lecteur', async () => {

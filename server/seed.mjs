@@ -63,8 +63,53 @@ export function seedDatabase({ quiet = false } = {}) {
   });
   tx();
 
-  if (!quiet) console.log(`[seed] ${bookCount} roman(s), ${chapterCount} chapitre(s) ajoutés.`);
-  return { books: bookCount, chapters: chapterCount };
+  // Rattrapage : romans déjà en base → on complète les chapitres manquants ou
+  // encore vides (import d'un manuscrit sans réinitialiser la base).
+  const findBook = db.prepare('SELECT id FROM books WHERE slug = ?');
+  const findChapter = db.prepare('SELECT id, text, status FROM chapters WHERE book_id = ? AND number = ?');
+  const updateChapter = db.prepare(
+    'UPDATE chapters SET title = ?, text = ?, is_free = ?, words = ?, status = ? WHERE id = ?',
+  );
+  let filled = 0;
+
+  const tx2 = db.transaction(() => {
+    for (const book of books) {
+      const row = findBook.get(book.slug);
+      if (!row) continue;
+      for (const ch of book.chapters || []) {
+        if (!ch.text) continue;
+        const existing = findChapter.get(row.id, ch.number);
+        if (!existing) {
+          insertChapter.run(
+            row.id,
+            ch.number,
+            ch.title || `Chapitre ${ch.number}`,
+            ch.text,
+            ch.isFree ? 1 : 0,
+            ch.words || countWords(ch.text),
+            ch.status || 'published',
+          );
+          filled += 1;
+        } else if (!existing.text || existing.text.length < ch.text.length) {
+          updateChapter.run(
+            ch.title || `Chapitre ${ch.number}`,
+            ch.text,
+            ch.isFree ? 1 : 0,
+            ch.words || countWords(ch.text),
+            'published',
+            existing.id,
+          );
+          filled += 1;
+        }
+      }
+    }
+  });
+  tx2();
+
+  if (!quiet) {
+    console.log(`[seed] ${bookCount} roman(s), ${chapterCount} chapitre(s) ajoutés, ${filled} complété(s).`);
+  }
+  return { books: bookCount, chapters: chapterCount, filled };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
