@@ -65,7 +65,13 @@ export default function Reader() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [prefs, setPrefs] = useState(readPrefs);
+  const [tocOpen, setTocOpen] = useState(false);
+  const [tocItems, setTocItems] = useState([]);
+  const [tocLoading, setTocLoading] = useState(false);
+  const [shareNote, setShareNote] = useState('');
   const saved = useRef(0);
+  const scrollTimer = useRef(0);
+  const restored = useRef('');
 
   useEffect(() => {
     try {
@@ -104,6 +110,46 @@ export default function Reader() {
     load();
   }, [load]);
 
+  /* Position de défilement : mémorisée localement et envoyée au compte. */
+  useEffect(() => {
+    if (state.loading || state.locked || !state.data) return;
+    const key = `${slug}-${number}`;
+    const posKey = `bf.pos.${slug}.${number}`;
+
+    if (restored.current !== key) {
+      restored.current = key;
+      const stored = Number(localStorage.getItem(posKey) || 0);
+      if (stored > 0.02) {
+        requestAnimationFrame(() => {
+          const max = document.documentElement.scrollHeight - window.innerHeight;
+          if (max > 0) window.scrollTo({ top: stored * max, behavior: 'auto' });
+        });
+      }
+    }
+
+    const onScroll = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (max <= 0) return;
+      const ratio = Math.min(1, Math.max(0, window.scrollY / max));
+      try {
+        localStorage.setItem(posKey, String(ratio));
+      } catch {
+        /* stockage plein : la position n'est pas mémorisée */
+      }
+      window.clearTimeout(scrollTimer.current);
+      scrollTimer.current = window.setTimeout(() => {
+        if (!user) return;
+        api.saveProgress({ bookSlug: slug, chapterNumber: Number(number), position: Number(ratio.toFixed(3)) }).catch(() => {});
+      }, 1200);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.clearTimeout(scrollTimer.current);
+    };
+  }, [state, slug, number, user]);
+
   /* Reprise de lecture : enregistre le chapitre ouvert. */
   useEffect(() => {
     if (!user || state.locked || !state.data) return;
@@ -128,6 +174,38 @@ export default function Reader() {
       else setNotice(err.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const openToc = async () => {
+    setTocOpen((open) => !open);
+    if (tocItems.length || tocLoading) return;
+    setTocLoading(true);
+    try {
+      const { chapters } = await api.book(slug);
+      setTocItems(chapters || []);
+    } catch {
+      setTocItems([]);
+    } finally {
+      setTocLoading(false);
+    }
+  };
+
+  const shareChapter = async () => {
+    const chapter = state.data?.chapter;
+    const url = window.location.href;
+    const text = chapter ? `${chapter.title} — ${state.data.book.title}` : 'BOOK FOREVER';
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: text, text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setShareNote('Lien copié');
+      window.setTimeout(() => setShareNote(''), 2000);
+    } catch {
+      setShareNote('Partage indisponible');
+      window.setTimeout(() => setShareNote(''), 2000);
     }
   };
 
@@ -269,6 +347,12 @@ export default function Reader() {
             {chapter.number}. {chapter.title}
           </span>
           <div className="reader-tools">
+            <button type="button" className="tool" onClick={openToc} aria-label="Sommaire" title="Sommaire">
+              ☰
+            </button>
+            <button type="button" className="tool" onClick={shareChapter} aria-label="Partager" title="Partager">
+              ↗
+            </button>
             <button type="button" className="tool" onClick={() => bumpSize(-0.05)} aria-label="Réduire le texte">
               A−
             </button>
@@ -288,6 +372,45 @@ export default function Reader() {
         </div>
       </div>
 
+      {tocOpen && (
+        <>
+          <button type="button" className="toc-backdrop" onClick={() => setTocOpen(false)} aria-label="Fermer le sommaire" />
+          <aside className="toc-panel" role="dialog" aria-label="Sommaire">
+            <div className="toc-head">
+              <strong>Sommaire</strong>
+              <button type="button" className="toc-close" onClick={() => setTocOpen(false)} aria-label="Fermer">
+                ×
+              </button>
+            </div>
+            {tocLoading ? (
+              <p className="muted" style={{ padding: 16 }}>
+                Chargement…
+              </p>
+            ) : (
+              <ul>
+                {tocItems.map((item) => (
+                  <li key={item.id || item.number}>
+                    <Link
+                      to={`/lire/${slug}/${item.number}`}
+                      className={`${item.number === Number(number) ? 'current' : ''} ${item.unlocked ? '' : 'locked'}`}
+                      onClick={() => setTocOpen(false)}
+                    >
+                      <span className="num">{String(item.number).padStart(2, '0')}</span>
+                      <span className="t">{item.title}</span>
+                      <span className="s" aria-hidden="true">
+                        {item.number === Number(number) ? '•' : item.unlocked ? '' : '🔒'}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+        </>
+      )}
+
+      {shareNote && <div className="share-note">{shareNote}</div>}
+
       {state.offline && (
         <div className="offline-banner">
           Version hors ligne — ce chapitre a été enregistré lors de votre dernière visite.
@@ -306,6 +429,10 @@ export default function Reader() {
             <p key={i}>{block}</p>
           ))}
         </div>
+
+        <button type="button" className="to-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          ↑ Haut du chapitre
+        </button>
 
         <div className="reader-nav">
           {navigation.previous ? (

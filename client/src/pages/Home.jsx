@@ -2,12 +2,26 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, formatXof } from '../api.js';
 import { useSite } from '../site.jsx';
+import { useSession } from '../session.jsx';
 import BookCard from '../components/BookCard.jsx';
 
 export default function Home() {
   const site = useSite();
+  const { user } = useSession();
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resume, setResume] = useState(null);
+
+  useEffect(() => {
+    if (!user) {
+      setResume(null);
+      return;
+    }
+    api
+      .overview()
+      .then((data) => setResume(data.lastRead || null))
+      .catch(() => setResume(null));
+  }, [user]);
 
   useEffect(() => {
     api
@@ -56,6 +70,29 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {resume && (
+        <section className="section resume-section">
+          <div className="wrap">
+            <div className="resume-card">
+              <img className="resume-cover" src={resume.book.cover} alt="" />
+              <div className="resume-body">
+                <span className="eyebrow">Reprendre la lecture</span>
+                <h3>{resume.book.title}</h3>
+                <p className="muted">
+                  Chapitre {resume.chapter.number} — {resume.chapter.title}
+                </p>
+                <div className="resume-bar" aria-hidden="true">
+                  <span style={{ width: `${Math.max(4, Math.round((resume.position || 0) * 100))}%` }} />
+                </div>
+              </div>
+              <Link to={`/lire/${resume.book.slug}/${resume.chapter.number}`} className="btn btn-gold">
+                Continuer
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="section">
         <div className="wrap">

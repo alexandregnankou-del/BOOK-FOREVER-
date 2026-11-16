@@ -1,11 +1,47 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, formatXof } from '../api.js';
+import { useSession } from '../session.jsx';
 
 export default function BookPage() {
   const { slug } = useParams();
+  const { user } = useSession();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [favorite, setFavorite] = useState(false);
+  const [favBusy, setFavBusy] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setFavorite(false);
+      return;
+    }
+    api
+      .favorites()
+      .then(({ slugs }) => setFavorite((slugs || []).includes(slug)))
+      .catch(() => setFavorite(false));
+  }, [slug, user]);
+
+  const toggleFavorite = async () => {
+    if (!user) {
+      window.location.assign(`/connexion?next=${encodeURIComponent(`/roman/${slug}`)}`);
+      return;
+    }
+    setFavBusy(true);
+    try {
+      if (favorite) {
+        await api.removeFavorite(slug);
+        setFavorite(false);
+      } else {
+        await api.addFavorite(slug);
+        setFavorite(true);
+      }
+    } catch {
+      /* on laisse l'état inchangé, l'utilisateur peut réessayer */
+    } finally {
+      setFavBusy(false);
+    }
+  };
 
   useEffect(() => {
     setData(null);
@@ -54,6 +90,16 @@ export default function BookPage() {
             <span className="pill">{formatXof(book.priceXof)} le chapitre</span>
             <span className="pill dark">{book.chaptersPublished} chapitres publiés</span>
           </div>
+          <button
+            type="button"
+            className={`fav-toggle ${favorite ? 'on' : ''}`}
+            onClick={toggleFavorite}
+            disabled={favBusy}
+            aria-pressed={favorite}
+          >
+            <span aria-hidden="true">{favorite ? '♥' : '♡'}</span>
+            {favorite ? 'Dans mes favoris' : 'Ajouter aux favoris'}
+          </button>
           <p className="synopsis">{book.synopsis}</p>
           {first && (
             <div style={{ marginTop: 24 }}>

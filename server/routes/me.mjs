@@ -159,3 +159,76 @@ meRoutes.post('/progress', (req, res) => {
     .run(req.user.id, book.id, chapter.id, position);
   res.json({ ok: true });
 });
+
+/* ---------- Favoris (v7) ---------- */
+meRoutes.get('/favorites', (req, res) => {
+  const rows = db
+    .prepare(`
+      SELECT f.created_at, b.slug, b.title, b.author, b.cover, b.tagline, b.category_name
+      FROM favorites f JOIN books b ON b.id = f.book_id
+      WHERE f.user_id = ? AND b.status = 'published'
+      ORDER BY f.created_at DESC`)
+    .all(req.user.id);
+  res.json({
+    favorites: rows.map((r) => ({
+      addedAt: r.created_at,
+      book: {
+        slug: r.slug,
+        title: r.title,
+        author: r.author,
+        cover: r.cover,
+        tagline: r.tagline,
+        category: r.category_name,
+      },
+    })),
+    slugs: rows.map((r) => r.slug),
+  });
+});
+
+meRoutes.post('/favorites', (req, res) => {
+  const book = db
+    .prepare("SELECT id, slug FROM books WHERE slug = ? AND status = 'published'")
+    .get(String(req.body?.bookSlug || ''));
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+  db.prepare('INSERT OR IGNORE INTO favorites (user_id, book_id) VALUES (?, ?)').run(req.user.id, book.id);
+  res.status(201).json({ ok: true, favorite: true, slug: book.slug });
+});
+
+meRoutes.delete('/favorites/:slug', (req, res) => {
+  const book = db.prepare('SELECT id FROM books WHERE slug = ?').get(String(req.params.slug || ''));
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+  db.prepare('DELETE FROM favorites WHERE user_id = ? AND book_id = ?').run(req.user.id, book.id);
+  res.json({ ok: true, favorite: false });
+});
+
+/* Vue d'ensemble pour l'accueil : reprise de lecture + favoris. */
+meRoutes.get('/overview', (req, res) => {
+  const last = db
+    .prepare(`
+      SELECT p.position, p.updated_at, b.slug AS book_slug, b.title AS book_title, b.cover AS book_cover,
+             c.number AS chapter_number, c.title AS chapter_title
+      FROM progress p
+      JOIN books b ON b.id = p.book_id
+      JOIN chapters c ON c.id = p.chapter_id
+      WHERE p.user_id = ? AND b.status = 'published'
+      ORDER BY p.updated_at DESC LIMIT 1`)
+    .get(req.user.id);
+  const favorites = db
+    .prepare('SELECT COUNT(*) AS n FROM favorites f JOIN books b ON b.id = f.book_id WHERE f.user_id = ?')
+    .get(req.user.id);
+  const purchases = db
+    .prepare("SELECT COUNT(*) AS n FROM orders WHERE user_id = ? AND status = 'paid'")
+    .get(req.user.id);
+  res.json({
+    lastRead: last
+      ? {
+          book: { slug: last.book_slug, title: last.book_title, cover: last.book_cover },
+          chapter: { number: last.chapter_number, title: last.chapter_title },
+          position: last.position,
+          updatedAt: last.updated_at,
+        }
+      : null,
+    favoritesCount: favorites.n || 0,
+    purchasedChapters: purchases.n || 0,
+  });
+});

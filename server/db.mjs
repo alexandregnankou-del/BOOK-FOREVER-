@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS progress (
   UNIQUE (user_id, book_id)
 );
 
+CREATE TABLE IF NOT EXISTS favorites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, book_id)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL DEFAULT ''
@@ -95,6 +103,7 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE INDEX IF NOT EXISTS idx_chapters_book ON chapters(book_id, number);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_orders_pending ON orders(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id);
 `);
 
 export const DEFAULT_SETTINGS = {

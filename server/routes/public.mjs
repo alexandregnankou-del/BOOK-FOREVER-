@@ -2,6 +2,8 @@ import express from 'express';
 import { db, getSettings, publicSite } from '../db.mjs';
 import { currentUser } from '../auth.mjs';
 
+const APP_VERSION = '1.7.0';
+
 export const publicRoutes = express.Router();
 
 function chapterSummary(row, { includeText = false } = {}) {
@@ -65,7 +67,8 @@ publicRoutes.get('/health', (req, res) => {
   }
   res.status(checks.db ? 200 : 503).json({
     ok: checks.db,
-    version: '1.0.0',
+    release: 'v7',
+    version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
   });

@@ -36,6 +36,10 @@ export const api = {
   buy: (body) => request('/api/me/purchases', { method: 'POST', body }),
   progress: () => request('/api/me/progress'),
   saveProgress: (body) => request('/api/me/progress', { method: 'POST', body }),
+  overview: () => request('/api/me/overview'),
+  favorites: () => request('/api/me/favorites'),
+  addFavorite: (bookSlug) => request('/api/me/favorites', { method: 'POST', body: { bookSlug } }),
+  removeFavorite: (slug) => request(`/api/me/favorites/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
 
   admin: {
     stats: () => request('/api/admin/stats'),

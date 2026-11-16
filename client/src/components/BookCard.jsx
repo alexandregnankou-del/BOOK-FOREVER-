@@ -1,11 +1,16 @@
 import { Link } from 'react-router-dom';
 import { formatXof } from '../api.js';
 
-export default function BookCard({ book }) {
+export default function BookCard({ book, favorite = false }) {
   return (
     <Link to={`/roman/${book.slug}`} className="book-card">
       <div className="cover">
         <img src={book.cover} alt={`Couverture — ${book.title}`} loading="lazy" />
+        {favorite && (
+          <span className="card-fav" title="Dans vos favoris" aria-label="Dans vos favoris">
+            ♥
+          </span>
+        )}
       </div>
       <div className="body">
         <span className="author">{book.author}</span>

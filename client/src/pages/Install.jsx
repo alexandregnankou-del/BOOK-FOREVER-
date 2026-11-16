@@ -45,7 +45,7 @@ export default function Install() {
     <div className="page">
       <div className="wrap">
         <div className="page-head">
-          <span className="eyebrow">Application</span>
+          <span className="eyebrow">Application · version 7</span>
           <h1>Installer {site.siteName} sur votre téléphone</h1>
           <p className="muted">
             Une icône sur l’écran d’accueil, ouverture en plein écran, et lecture possible même avec une connexion
@@ -101,6 +101,35 @@ export default function Install() {
             {shared && <p className="muted" style={{ fontSize: '0.8rem', marginTop: 10 }}>{shared}</p>}
           </div>
         </div>
+
+        <section style={{ marginTop: 34 }}>
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Nouveautés</span>
+              <h2 style={{ fontSize: '1.5rem' }}>Ce que change la version 7</h2>
+            </div>
+          </div>
+          <ul className="release-list">
+            <li>
+              <strong>Reprendre la lecture</strong> — la page d’accueil vous ramène au chapitre laissé en cours, à la
+              bonne hauteur de page.
+            </li>
+            <li>
+              <strong>Favoris</strong> — gardez un roman de côté et retrouvez-le dans l’onglet « Mes favoris » de la
+              bibliothèque.
+            </li>
+            <li>
+              <strong>Recherche</strong> — titre, auteur ou thème, filtrable par catégorie dans la bibliothèque.
+            </li>
+            <li>
+              <strong>Sommaire dans le lecteur</strong> — ouvrez la table des chapitres sans quitter la lecture, avec
+              repère du chapitre en cours et cadenas sur ceux à débloquer.
+            </li>
+            <li>
+              <strong>Partage</strong> — envoyez un chapitre à un proche depuis le lecteur, directement dans WhatsApp.
+            </li>
+          </ul>
+        </section>
 
         <p className="muted" style={{ fontSize: '0.8rem', marginTop: 26 }}>
           Astuce : si la page ne s’ouvre pas depuis Facebook ou WhatsApp, touchez « ⋯ » puis « Ouvrir dans le
