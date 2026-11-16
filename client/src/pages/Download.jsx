@@ -75,6 +75,13 @@ export default function Download() {
         <p className="hint">
           Support : {site.contactEmail} — {site.contactPhone}
         </p>
+        <p className="hint" style={{ marginTop: 14 }}>
+          Pour héberger le site ailleurs ou l’archiver :{' '}
+          <a href="/download/book-forever-web-1.7.0.zip" download>
+            archive web 1.7.0 (635 Ko)
+          </a>
+          .
+        </p>
       </section>
     </div>
   );
