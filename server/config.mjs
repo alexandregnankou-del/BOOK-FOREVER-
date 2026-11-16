@@ -1,12 +1,32 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 
 const rootDir = path.resolve(import.meta.dirname, '..');
-const dataDir = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
-  : path.join(rootDir, 'data');
 
-fs.mkdirSync(dataDir, { recursive: true });
+/** Le dossier de données doit être inscriptible : sur certaines plateformes
+ *  le dossier de l'application est en lecture seule. On essaie dans l'ordre
+ *  DATA_DIR, ./data, puis le dossier temporaire du système. */
+function resolveDataDir() {
+  const candidates = [
+    process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : null,
+    path.join(rootDir, 'data'),
+    path.join(os.tmpdir(), 'book-forever-data'),
+  ].filter(Boolean);
+
+  for (const dir of candidates) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.accessSync(dir, fs.constants.W_OK);
+      return dir;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error('Aucun dossier de données inscriptible trouvé');
+}
+
+const dataDir = resolveDataDir();
 
 export const config = {
   rootDir,
