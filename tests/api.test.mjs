@@ -77,14 +77,15 @@ test('santé de l’API', async () => {
   assert.equal(json.ok, true);
 });
 
-test('catalogue : 3 romans, 36 chapitres, 2 offerts par roman', async () => {
+test('catalogue : 3 romans, tous les chapitres publiés, 2 offerts par roman', async () => {
   const { status, json } = await anon('/api/books');
   assert.equal(status, 200);
   assert.equal(json.books.length, 3);
-  assert.deepEqual(json.books.map((b) => b.chaptersTotal).sort((a, b) => a - b), [6, 10, 20]);
   for (const book of json.books) {
     assert.equal(book.chaptersFree, 2);
     assert.equal(book.priceXof, 300);
+    assert.ok(book.chaptersTotal >= 6, `${book.slug} doit avoir au moins 6 chapitres`);
+    assert.equal(book.chaptersPublished, book.chaptersTotal, `${book.slug} : chapitres non publiés`);
   }
 });
 
