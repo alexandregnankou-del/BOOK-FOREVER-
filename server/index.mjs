@@ -90,8 +90,17 @@ function buildMeta(req) {
   return { tags, title: esc(title) };
 }
 
+/* Un fichier demandé (extension ou dossier de téléchargement) ne doit jamais
+   recevoir la page HTML du site : on répond 404 pour éviter de faire passer
+   un .apk manquant pour le site. */
+const FILE_LIKE = /^\/(download|media|covers|icons|assets|fonts|screenshots)\//i;
+const HAS_EXTENSION = /\/[^/]+\.[a-z0-9]{2,5}$/i;
+
 app.get(/^\/(?!api\/).*/, (req, res, next) => {
   if (['/sw.js', '/manifest.webmanifest'].includes(req.path)) return next();
+  if (FILE_LIKE.test(req.path) || HAS_EXTENSION.test(req.path)) {
+    return res.status(404).type('text/plain').send('Fichier introuvable.');
+  }
   if (!fs.existsSync(indexHtml)) {
     return res
       .status(503)
