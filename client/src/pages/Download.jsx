@@ -21,9 +21,9 @@ export default function Download() {
           <div className="dl-icon">▲</div>
           <h2>Android</h2>
           <p className="muted">
-            Fichier <code>book-forever-1.0.0.apk</code> — compatible Android 7 et plus récent.
+            Fichier <code>book-forever-v8.apk</code> (version 8.0.0, 103 Ko) — compatible Android 7 et plus récent. Si une ancienne version est installée, désinstallez-la d’abord.
           </p>
-          <a className="btn btn-gold btn-block" href="/download/book-forever-1.0.0.apk" download>
+          <a className="btn btn-gold btn-block" href="/download/book-forever-v8.apk" download>
             Télécharger l’application
           </a>
           <ol className="steps">
@@ -77,8 +77,8 @@ export default function Download() {
         </p>
         <p className="hint" style={{ marginTop: 14 }}>
           Pour héberger le site ailleurs ou l’archiver :{' '}
-          <a href="/download/book-forever-web-1.7.0.zip" download>
-            archive web 1.7.0 (635 Ko)
+          <a href="/download/book-forever-web-1.8.0.zip" download>
+            archive web 1.8.0
           </a>
           .
         </p>

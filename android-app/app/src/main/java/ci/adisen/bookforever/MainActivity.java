@@ -2,14 +2,18 @@ package ci.adisen.bookforever;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.DownloadManager;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.KeyEvent;
 import android.view.View;
 import android.webkit.CookieManager;
+import android.webkit.URLUtil;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -17,18 +21,25 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 /**
- * BOOK FOREVER — application Android.
+ * BOOK FOREVER — application Android, version 8.
+ *
  * Coque native autour de la plateforme : la bibliothèque, le lecteur, les achats
  * et la console sont servis par le site, donc l'application suit automatiquement
  * les mises à jour du site.
+ *
+ * Nouveautés v8 : téléchargement des fichiers (APK, archive) géré par le
+ * gestionnaire système, barre de progression pendant le chargement, reprise
+ * propre après mise en veille.
  */
 public class MainActivity extends Activity {
 
     private static final String START_URL = "https://book-forever.onrender.com/";
     private static final String HOME_HOST = "book-forever.onrender.com";
     private static final String OFFLINE_PAGE = "file:///android_asset/offline.html";
+    private static final String UA_SUFFIX = " BookForeverApp/8.0";
 
     private WebView webView;
     private ProgressBar spinner;
@@ -51,6 +62,7 @@ public class MainActivity extends Activity {
         root.addView(webView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
+
         spinner = new ProgressBar(this);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -69,7 +81,7 @@ public class MainActivity extends Activity {
         s.setBuiltInZoomControls(false);
         s.setMediaPlaybackRequiresUserGesture(true);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        s.setUserAgentString(s.getUserAgentString() + " BookForeverApp/1.0");
+        s.setUserAgentString(s.getUserAgentString() + UA_SUFFIX);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         }
@@ -78,6 +90,55 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
         }
+
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onProgressChanged(WebView view, int newProgress) {
+                if (spinner == null) return;
+                if (newProgress >= 85) {
+                    spinner.setVisibility(View.GONE);
+                } else {
+                    spinner.setVisibility(View.VISIBLE);
+                }
+            }
+        });
+
+        /* Téléchargements : le WebView ne sait pas enregistrer un fichier.
+           On confie le .apk ou l'archive au gestionnaire du système. */
+        webView.setDownloadListener(new android.webkit.DownloadListener() {
+            @Override
+            public void onDownloadStart(String url, String userAgent, String contentDisposition,
+                                        String mimetype, long contentLength) {
+                try {
+                    String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
+                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                    request.setMimeType(mimetype);
+                    request.addRequestHeader("User-Agent", userAgent);
+                    request.setTitle(fileName);
+                    request.setDescription("BOOK FOREVER");
+                    request.setNotificationVisibility(
+                            DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+                    }
+                    DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                    if (manager != null) {
+                        manager.enqueue(request);
+                        Toast.makeText(MainActivity.this, "Téléchargement démarré : " + fileName,
+                                Toast.LENGTH_LONG).show();
+                    } else {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                    }
+                } catch (Exception e) {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                    } catch (Exception ignored) {
+                        Toast.makeText(MainActivity.this, "Téléchargement impossible",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        });
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -89,6 +150,11 @@ public class MainActivity extends Activity {
             @SuppressWarnings("deprecation")
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return handleUrl(Uri.parse(url));
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                if (spinner != null) spinner.setVisibility(View.VISIBLE);
             }
 
             @Override
@@ -131,7 +197,8 @@ public class MainActivity extends Activity {
             startActivity(new Intent(Intent.ACTION_VIEW, uri));
             return true;
         }
-        if ("mailto".equals(scheme) || "tel".equals(scheme) || "whatsapp".equals(scheme)) {
+        if ("mailto".equals(scheme) || "tel".equals(scheme) || "whatsapp".equals(scheme)
+                || "sms".equals(scheme) || "intent".equals(scheme)) {
             try {
                 startActivity(new Intent(Intent.ACTION_VIEW, uri));
             } catch (Exception ignored) {
@@ -156,6 +223,18 @@ public class MainActivity extends Activity {
         if (webView != null) {
             webView.saveState(outState);
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (webView != null) webView.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (webView != null) webView.onResume();
     }
 
     @Override
