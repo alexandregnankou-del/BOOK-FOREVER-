@@ -85,3 +85,12 @@ cd android-app
 L'APK publié est copié dans `public/download/book-forever-1.0.0.apk` et distribué par la page
 `/telecharger` (type MIME `application/vnd.android.package-archive`). Le keystore de signature
 n'est pas versionné : conservez-le pour pouvoir publier des mises à jour.
+
+## Journal des versions
+
+### v7 — 17 novembre 2026
+- Reprise de lecture sur l'accueil (chapitre + position de défilement).
+- Favoris par lecteur, onglet « Mes favoris » dans la bibliothèque.
+- Recherche dans la bibliothèque (titre, auteur, thème) + filtre par catégorie.
+- Sommaire latéral dans le lecteur, partage natif d'un chapitre.
+- Un fichier absent sous `/download/` renvoie un 404 explicite au lieu de la page HTML.
