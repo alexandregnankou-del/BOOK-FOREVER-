@@ -61,12 +61,17 @@ export default function Orders() {
           <span className="eyebrow">Paiements</span>
           <h1>Ventes</h1>
         </div>
-        <div className="tabs" style={{ margin: 0, border: 'none' }}>
-          {FILTERS.map(([id, label]) => (
-            <button key={id} type="button" className={filter === id ? 'active' : ''} onClick={() => setFilter(id)}>
-              {label}
-            </button>
-          ))}
+        <div className="console-actions">
+          <div className="tabs" style={{ margin: 0, border: 'none' }}>
+            {FILTERS.map(([id, label]) => (
+              <button key={id} type="button" className={filter === id ? 'active' : ''} onClick={() => setFilter(id)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <a className="btn btn-ghost btn-sm" href="/api/admin/orders/export.csv" download>
+            Exporter en CSV
+          </a>
         </div>
       </div>
 

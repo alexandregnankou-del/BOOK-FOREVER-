@@ -295,6 +295,55 @@ adminRoutes.get('/orders', (req, res) => {
   res.json({ orders: rows });
 });
 
+/* Export CSV des ventes : séparateur « ; » et BOM, ouvert directement dans Excel FR. */
+adminRoutes.get('/orders/export.csv', (req, res) => {
+  const rows = db
+    .prepare(`
+      SELECT o.reference, o.created_at, o.status, o.amount_xof, o.method, o.provider_ref, o.validated_at, o.note,
+             b.title AS book_title, c.number AS chapter_number, c.title AS chapter_title,
+             u.email AS user_email, u.name AS user_name
+      FROM orders o
+      JOIN books b ON b.id = o.book_id
+      JOIN chapters c ON c.id = o.chapter_id
+      JOIN users u ON u.id = o.user_id
+      ORDER BY o.created_at DESC`)
+    .all();
+
+  const fr = (value) => {
+    const v = value == null ? '' : String(value);
+    return `"${v.replace(/"/g, '""')}"`;
+  };
+  const lines = [
+    ['Référence', 'Date', 'Statut', 'Montant FCFA', 'Moyen', 'Référence paiement', 'Validé le', 'Note', 'Roman', 'Chapitre', 'Titre chapitre', 'Lecteur', 'E-mail'].map(fr).join(';'),
+  ];
+  for (const r of rows) {
+    lines.push(
+      [
+        r.reference,
+        r.created_at,
+        r.status,
+        r.amount_xof,
+        r.method,
+        r.provider_ref,
+        r.validated_at,
+        r.note,
+        r.book_title,
+        r.chapter_number,
+        r.chapter_title,
+        r.user_name,
+        r.user_email,
+      ]
+        .map(fr)
+        .join(';'),
+    );
+  }
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="ventes-book-forever-${stamp}.csv"`);
+  res.send('\uFEFF' + lines.join('\r\n'));
+});
+
 adminRoutes.post('/orders/:id/validate', (req, res) => {
   const row = db.prepare('SELECT * FROM orders WHERE id = ?').get(Number(req.params.id));
   if (!row) return res.status(404).json({ error: 'Commande introuvable.' });

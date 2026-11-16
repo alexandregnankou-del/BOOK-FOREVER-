@@ -1369,3 +1369,75 @@ select {
   margin: 0;
 }
 .hint a { color: var(--gold); }
+
+/* ---------- Confort de lecture : taille, thème, hors-ligne ---------- */
+.reader { transition: background 180ms ease; }
+
+.reader-body .prose {
+  font-size: var(--reader-size, 1.24rem);
+  transition: font-size 120ms ease;
+}
+
+.reader-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.reader-tools .tool {
+  min-width: 38px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+.reader-tools .tool:active { transform: scale(0.96); }
+
+.reader[data-theme='light'] { background: #ffffff; }
+.reader[data-theme='light'] .reader-bar { background: rgba(255, 255, 255, 0.96); }
+.reader[data-theme='light'] .prose { color: #14110e; }
+
+.reader[data-theme='dark'] { background: #14110e; }
+.reader[data-theme='dark'] .reader-bar {
+  background: rgba(20, 17, 14, 0.96);
+  border-bottom-color: rgba(245, 239, 230, 0.1);
+}
+.reader[data-theme='dark'] .reader-body h1,
+.reader[data-theme='dark'] .reader-body .byline,
+.reader[data-theme='dark'] .reader-body .eyebrow { color: rgba(245, 239, 230, 0.92); }
+.reader[data-theme='dark'] .prose { color: #e7ddca; }
+.reader[data-theme='dark'] .reader-nav { border-top-color: rgba(245, 239, 230, 0.12); }
+.reader[data-theme='dark'] .btn-ghost {
+  border-color: rgba(245, 239, 230, 0.22);
+  color: rgba(245, 239, 230, 0.85);
+}
+.reader[data-theme='dark'] .reader-tools .tool {
+  border-color: rgba(245, 239, 230, 0.2);
+  color: rgba(245, 239, 230, 0.75);
+}
+.reader[data-theme='dark'] .reader-bar .grow { color: rgba(245, 239, 230, 0.9); }
+.reader[data-theme='dark'] .muted { color: rgba(245, 239, 230, 0.55); }
+
+.offline-banner {
+  background: rgba(201, 162, 39, 0.14);
+  border-bottom: 1px solid rgba(201, 162, 39, 0.35);
+  color: #7a5d12;
+  font-size: 13px;
+  text-align: center;
+  padding: 9px 16px;
+}
+.reader[data-theme='dark'] .offline-banner {
+  background: rgba(201, 162, 39, 0.16);
+  color: #e2c674;
+}
+
+.console-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}

@@ -53,6 +53,43 @@ app.use('/assets', express.static(path.join(config.distDir, 'assets'), { maxAge:
 app.get('/site.json', (req, res) => res.json(publicSite()));
 
 const indexHtml = path.join(config.distDir, 'index.html');
+
+/* Aperçu de partage (WhatsApp, Facebook…) : titre, résumé et couverture réels. */
+function buildMeta(req) {
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const site = publicSite();
+  let title = `${site.siteName} — Lire autrement, chapitre après chapitre`;
+  let description =
+    'Deux chapitres offerts par roman. La suite pour 300 FCFA le chapitre, par Wave ou Orange Money.';
+  let image = `${origin}/media/covers/light-in-the-dark.webp`;
+
+  const bookMatch = req.path.match(/^\/roman\/([a-z0-9-]+)$/);
+  if (bookMatch) {
+    const book = db
+      .prepare("SELECT title, author, tagline, synopsis, cover FROM books WHERE slug = ? AND status = 'published'")
+      .get(bookMatch[1]);
+    if (book) {
+      title = `${book.title} — ${book.author}`;
+      description = book.tagline || book.synopsis || description;
+      if (book.cover) image = `${origin}${book.cover}`;
+    }
+  }
+
+  const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const tags = [
+    '<meta property="og:site_name" content="' + esc(site.siteName) + '" />',
+    '<meta property="og:type" content="website" />',
+    '<meta property="og:title" content="' + esc(title) + '" />',
+    '<meta property="og:description" content="' + esc(description.slice(0, 200)) + '" />',
+    '<meta property="og:image" content="' + esc(image) + '" />',
+    '<meta property="og:url" content="' + esc(origin + req.path) + '" />',
+    '<meta name="twitter:card" content="summary_large_image" />',
+    '<meta name="twitter:title" content="' + esc(title) + '" />',
+    '<meta name="twitter:image" content="' + esc(image) + '" />',
+  ].join('\n    ');
+  return { tags, title: esc(title) };
+}
+
 app.get(/^\/(?!api\/).*/, (req, res, next) => {
   if (['/sw.js', '/manifest.webmanifest'].includes(req.path)) return next();
   if (!fs.existsSync(indexHtml)) {
@@ -62,7 +99,13 @@ app.get(/^\/(?!api\/).*/, (req, res, next) => {
       .send('Le site n’est pas encore compilé. Lancez « npm run build ».');
   }
   res.setHeader('Cache-Control', 'no-store');
-  res.sendFile(indexHtml);
+  let html = fs.readFileSync(indexHtml, 'utf8');
+  if (html.includes('<!--meta-start-->')) {
+    const { tags, title } = buildMeta(req);
+    html = html.replace(/<!--meta-start-->[\s\S]*?<!--meta-end-->/, tags);
+    html = html.replace(/<title>[\s\S]*?<\/title>/, '<title>' + title + '</title>');
+  }
+  res.type('html').send(html);
 });
 
 app.use((req, res) => res.status(404).json({ error: 'Ressource introuvable.' }));

@@ -11,28 +11,91 @@ function paragraphs(text) {
     .filter(Boolean);
 }
 
+const PREFS_KEY = 'bf.reader.prefs';
+const CACHE_PREFIX = 'bf.chapter.';
+const CACHE_MAX = 10;
+const THEMES = ['sepia', 'light', 'dark'];
+const THEME_ICONS = { sepia: '◐', light: '☀', dark: '☾' };
+
+function readPrefs() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+    return {
+      size: Math.min(1.4, Math.max(0.9, Number(raw.size) || 1)),
+      theme: THEMES.includes(raw.theme) ? raw.theme : 'sepia',
+    };
+  } catch {
+    return { size: 1, theme: 'sepia' };
+  }
+}
+
+function cacheChapter(slug, number, payload) {
+  try {
+    const key = `${CACHE_PREFIX}${slug}.${number}`;
+    localStorage.setItem(key, JSON.stringify({ payload, at: Date.now() }));
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith(CACHE_PREFIX));
+    if (keys.length > CACHE_MAX) {
+      keys
+        .sort((a, b) => (JSON.parse(localStorage.getItem(a)).at || 0) - (JSON.parse(localStorage.getItem(b)).at || 0))
+        .slice(0, keys.length - CACHE_MAX)
+        .forEach((k) => localStorage.removeItem(k));
+    }
+  } catch {
+    /* quota atteint : la lecture en ligne reste possible */
+  }
+}
+
+function cachedChapter(slug, number) {
+  try {
+    const raw = localStorage.getItem(`${CACHE_PREFIX}${slug}.${number}`);
+    return raw ? JSON.parse(raw).payload : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Reader() {
   const { slug, number } = useParams();
   const navigate = useNavigate();
   const { user } = useSession();
   const site = useSite();
-  const [state, setState] = useState({ loading: true, locked: false, data: null, error: '' });
+  const [state, setState] = useState({ loading: true, locked: false, data: null, error: '', offline: false });
   const [method, setMethod] = useState('wave_link');
   const [order, setOrder] = useState(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [prefs, setPrefs] = useState(readPrefs);
   const saved = useRef(0);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+      /* stockage indisponible : les réglages restent valables pour la session */
+    }
+  }, [prefs]);
+
+  const bumpSize = (delta) =>
+    setPrefs((p) => ({ ...p, size: Math.min(1.4, Math.max(0.9, Math.round((p.size + delta) * 100) / 100)) }));
+  const cycleTheme = () =>
+    setPrefs((p) => ({ ...p, theme: THEMES[(THEMES.indexOf(p.theme) + 1) % THEMES.length] }));
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: '' }));
     try {
       const data = await api.chapter(slug, number);
-      setState({ loading: false, locked: false, data, error: '' });
+      setState({ loading: false, locked: false, data, error: '', offline: false });
+      cacheChapter(slug, number, data);
     } catch (err) {
       if (err.status === 402) {
-        setState({ loading: false, locked: true, data: err.payload, error: '' });
+        setState({ loading: false, locked: true, data: err.payload, error: '', offline: false });
       } else {
-        setState({ loading: false, locked: false, data: null, error: err.message });
+        const fallback = cachedChapter(slug, number);
+        if (fallback) {
+          setState({ loading: false, locked: false, data: fallback, error: '', offline: true });
+        } else {
+          setState({ loading: false, locked: false, data: null, error: err.message, offline: false });
+        }
       }
     }
   }, [slug, number]);
@@ -196,7 +259,7 @@ export default function Reader() {
   const { chapter, book, navigation } = state.data;
 
   return (
-    <div className="reader">
+    <div className="reader" data-theme={prefs.theme} style={{ '--reader-size': `${prefs.size}rem` }}>
       <div className="reader-bar">
         <div className="wrap bar">
           <Link to={`/roman/${book.slug}`} className="btn btn-ghost btn-sm" aria-label="Retour au roman">
@@ -205,11 +268,31 @@ export default function Reader() {
           <span className="grow">
             {chapter.number}. {chapter.title}
           </span>
-          <span className="muted" style={{ fontSize: '0.75rem' }}>
-            {chapter.words} mots
-          </span>
+          <div className="reader-tools">
+            <button type="button" className="tool" onClick={() => bumpSize(-0.05)} aria-label="Réduire le texte">
+              A−
+            </button>
+            <button type="button" className="tool" onClick={() => bumpSize(0.05)} aria-label="Agrandir le texte">
+              A+
+            </button>
+            <button
+              type="button"
+              className="tool"
+              onClick={cycleTheme}
+              aria-label={`Thème ${prefs.theme}`}
+              title={`Thème : ${prefs.theme}`}
+            >
+              {THEME_ICONS[prefs.theme]}
+            </button>
+          </div>
         </div>
       </div>
+
+      {state.offline && (
+        <div className="offline-banner">
+          Version hors ligne — ce chapitre a été enregistré lors de votre dernière visite.
+        </div>
+      )}
 
       <article className="reader-body">
         <span className="eyebrow">
