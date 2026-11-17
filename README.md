@@ -76,17 +76,49 @@ Voir [docs/DEPLOY.md](docs/DEPLOY.md). En résumé : dépôt GitHub → Render (
 `android-app/` contient la coque native (WebView) qui donne l'application installable.
 Elle pointe vers le site : toute mise à jour du site est immédiatement dans l'application.
 
+### Chaîne de compilation requise
+
+Aucun SDK n'est préinstallé sur les serveurs d'exécution. Il faut, une fois :
+
 ```bash
-cd android-app
-./build.sh          # aapt2 → javac → d8 → zipalign → apksigner
-# APK : android-app/build/book-forever.apk
+# JDK 17
+curl -L -o jdk.tar.gz "https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jdk/hotspot/normal/eclipse"
+mkdir -p /opt/toolchain && tar xzf jdk.tar.gz -C /opt/toolchain
+
+# Command-line tools + plateforme
+curl -L -o cmdline.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+unzip -q cmdline.zip -d /opt/toolchain/cmdline
+export JAVA_HOME=/opt/toolchain/jdk-17.0.21+9
+yes | /opt/toolchain/cmdline/cmdline-tools/bin/sdkmanager --sdk_root=/opt/toolchain/sdk --licenses
+/opt/toolchain/cmdline/cmdline-tools/bin/sdkmanager --sdk_root=/opt/toolchain/sdk \
+  "platforms;android-34" "build-tools;34.0.0"
 ```
 
-L'APK publié est copié dans `public/download/book-forever-1.0.0.apk` et distribué par la page
-`/telecharger` (type MIME `application/vnd.android.package-archive`). Le keystore de signature
-n'est pas versionné : conservez-le pour pouvoir publier des mises à jour.
+### Construction
+
+```bash
+export ANDROID_HOME=/opt/toolchain/sdk JAVA_HOME=/opt/toolchain/jdk-17.0.21+9
+cd android-app && bash build.sh     # aapt2 → javac → d8 → zipalign → apksigner
+cp build/book-forever.apk ../public/download/book-forever-v8.apk
+```
+
+L'APK est distribué par `/telecharger` (type MIME `application/vnd.android.package-archive`).
+
+### Signature
+
+Le keystore (`android-app/keystore/book-forever.jks`, mot de passe `bookforever`) n'est **pas
+versionné** : sans lui, Android refuse les mises à jour et les lecteurs doivent désinstaller.
+Une copie de sauvegarde et son mode d'emploi se trouvent dans `backups/apk-signing/`.
 
 ## Journal des versions
+
+### v8 — 17 novembre 2026
+- APK `8.0.0` (versionCode 8) compilé et signé : téléchargement des fichiers géré par Android
+  (un WebView n'enregistre rien de lui-même), barre de progression réelle, reprise après veille,
+  liens `sms:` et `intent:`.
+- Serveur : un fichier absent sous `/download/`, `/media/`, `/assets/`… renvoie 404 au lieu de la
+  page HTML — plus de faux `.apk` de 2 Ko.
+- Archive web `book-forever-web-1.8.0.zip` publiée et liée depuis `/telecharger`.
 
 ### v7 — 17 novembre 2026
 - Reprise de lecture sur l'accueil (chapitre + position de défilement).
