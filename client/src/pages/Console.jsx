@@ -5,6 +5,7 @@ import Dashboard from '../console/Dashboard.jsx';
 import Books from '../console/Books.jsx';
 import Messages from '../console/Messages.jsx';
 import Orders from '../console/Orders.jsx';
+import Subs from '../console/Subs.jsx';
 import Settings from '../console/Settings.jsx';
 import { api } from '../api.js';
 
@@ -13,6 +14,7 @@ const TABS = [
   ['books', 'Romans & chapitres'],
   ['messages', 'Messages'],
   ['orders', 'Ventes'],
+  ['subs', 'Abonnements & auteurs'],
   ['settings', 'Réglages'],
 ];
 
@@ -87,6 +89,7 @@ export default function Console() {
         {tab === 'books' && <Books />}
         {tab === 'messages' && <Messages />}
         {tab === 'orders' && <Orders />}
+        {tab === 'subs' && <Subs />}
         {tab === 'settings' && <Settings />}
       </main>
     </div>

@@ -410,3 +410,53 @@ adminRoutes.post('/covers', (req, res) => {
   fs.writeFileSync(path.join(dir, name), buffer);
   res.status(201).json({ url: `/media/covers/${name}` });
 });
+
+/* ---------- v16 : abonnements ---------- */
+adminRoutes.get('/subscriptions', (req, res) => {
+  const rows = db
+    .prepare(`SELECT s.*, u.email, u.name FROM subscriptions s JOIN users u ON u.id = s.user_id
+              ORDER BY CASE s.status WHEN 'pending' THEN 0 ELSE 1 END, s.id DESC LIMIT 200`)
+    .all();
+  res.json({ subscriptions: rows });
+});
+
+adminRoutes.post('/subscriptions/:id/validate', (req, res) => {
+  const sub = db.prepare('SELECT * FROM subscriptions WHERE id = ?').get(Number(req.params.id));
+  if (!sub) return res.status(404).json({ error: 'Abonnement introuvable.' });
+  const start = new Date();
+  const end = new Date(start.getTime() + 30 * 24 * 3600 * 1000);
+  db.prepare(`UPDATE subscriptions SET status = 'active', period_start = ?, period_end = ?,
+              validated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+    .run(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10), sub.id);
+  res.json({ ok: true, periodEnd: end.toISOString().slice(0, 10) });
+});
+
+adminRoutes.post('/subscriptions/:id/reject', (req, res) => {
+  const sub = db.prepare('SELECT * FROM subscriptions WHERE id = ?').get(Number(req.params.id));
+  if (!sub) return res.status(404).json({ error: 'Abonnement introuvable.' });
+  db.prepare("UPDATE subscriptions SET status = 'rejected', validated_at = CURRENT_TIMESTAMP WHERE id = ?").run(sub.id);
+  res.json({ ok: true });
+});
+
+/* ---------- v16 : candidatures d'auteur ---------- */
+adminRoutes.get('/authors', (req, res) => {
+  const rows = db
+    .prepare(`SELECT id, email, name, pen_name, bio, author_status, author_requested_at
+              FROM users WHERE author_status <> '' ORDER BY CASE author_status WHEN 'pending' THEN 0 ELSE 1 END, id DESC`)
+    .all();
+  res.json({ authors: rows });
+});
+
+adminRoutes.post('/authors/:id/approve', (req, res) => {
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(Number(req.params.id));
+  if (!user) return res.status(404).json({ error: 'Compte introuvable.' });
+  db.prepare("UPDATE users SET author_status = 'approved' WHERE id = ?").run(user.id);
+  res.json({ ok: true });
+});
+
+adminRoutes.post('/authors/:id/reject', (req, res) => {
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(Number(req.params.id));
+  if (!user) return res.status(404).json({ error: 'Compte introuvable.' });
+  db.prepare("UPDATE users SET author_status = 'rejected' WHERE id = ?").run(user.id);
+  res.json({ ok: true });
+});

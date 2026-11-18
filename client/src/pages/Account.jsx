@@ -11,6 +11,10 @@ export default function Account() {
   const [reading, setReading] = useState([]);
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [subscription, setSubscription] = useState(null);
+  const [author, setAuthor] = useState(null);
+  const [authorForm, setAuthorForm] = useState({ penName: '', bio: '' });
+  const [subBusy, setSubBusy] = useState(false);
 
   useEffect(() => {
     if (ready && !user) navigate('/connexion?next=/compte');
@@ -20,6 +24,8 @@ export default function Account() {
     if (!user) return;
     api.purchases().then(({ purchases: list }) => setPurchases(list)).catch(() => {});
     api.progress().then(({ reading: list }) => setReading(list)).catch(() => {});
+    api.subscription().then(setSubscription).catch(() => {});
+    api.authorStatus().then(setAuthor).catch(() => {});
   }, [user]);
 
   if (!ready || !user) return <p className="empty">Chargement…</p>;
@@ -36,6 +42,32 @@ export default function Account() {
     }
   };
 
+  const subscribe = async () => {
+    setSubBusy(true);
+    setFeedback({ type: '', message: '' });
+    try {
+      const res = await api.subscribe({ method: 'wave_link' });
+      setFeedback({ type: 'ok', message: res.message });
+      api.subscription().then(setSubscription).catch(() => {});
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message });
+    } finally {
+      setSubBusy(false);
+    }
+  };
+
+  const applyAuthor = async (event) => {
+    event.preventDefault();
+    setFeedback({ type: '', message: '' });
+    try {
+      const res = await api.applyAuthor(authorForm);
+      setFeedback({ type: 'ok', message: res.message });
+      api.authorStatus().then(setAuthor).catch(() => {});
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message });
+    }
+  };
+
   return (
     <div className="page">
       <div className="wrap">
@@ -43,6 +75,86 @@ export default function Account() {
           <span className="eyebrow">Mon compte</span>
           <h1>{user.name || user.email}</h1>
           <p className="muted">{user.email}</p>
+        </div>
+
+        {feedback.message && (
+          <p className={feedback.type === 'ok' ? 'ok' : 'error'} style={{ marginBottom: 14 }}>
+            {feedback.message}
+          </p>
+        )}
+
+        <div className="about-grid" style={{ marginBottom: 22 }}>
+          <div className="panel">
+            <div className="sub-status">
+              <h2 style={{ margin: 0 }}>Abonnement</h2>
+              {subscription?.active ? (
+                <span className="badge-author">Actif</span>
+              ) : subscription?.subscription?.status === 'pending' ? (
+                <span className="hint">En attente de validation</span>
+              ) : null}
+            </div>
+            <p className="hint" style={{ marginTop: 8 }}>
+              {formatXof(subscription?.priceXof || 2000)} par mois — tout le catalogue, sans compter. Sans
+              engagement.
+            </p>
+            {subscription?.active ? (
+              <p>
+                Valable jusqu’au <strong>{formatDate(subscription.subscription.period_end)}</strong>.
+              </p>
+            ) : subscription?.subscription?.status === 'pending' ? (
+              <p className="hint">Nous vérifions votre transfert Wave ou Orange Money. Activation sous 24 h.</p>
+            ) : (
+              <button className="btn btn-gold" onClick={subscribe} disabled={subBusy}>
+                {subBusy ? 'Envoi…' : 'S’abonner — 2 000 FCFA / mois'}
+              </button>
+            )}
+          </div>
+
+          <div className="panel">
+            <div className="sub-status">
+              <h2 style={{ margin: 0 }}>Statut d’auteur</h2>
+              {author?.status === 'approved' && <span className="badge-author">Auteur</span>}
+            </div>
+            {author?.status === 'approved' ? (
+              <>
+                <p style={{ marginTop: 8 }}>
+                  Vous écrivez sous le nom de <strong>{author.penName}</strong>.
+                </p>
+                <Link className="btn btn-ghost btn-sm" to="/ecrire">
+                  Ouvrir mon atelier →
+                </Link>
+              </>
+            ) : author?.status === 'pending' ? (
+              <p className="hint">Votre candidature est en cours d’examen.</p>
+            ) : (
+              <form className="form" onSubmit={applyAuthor}>
+                <label>
+                  <span>Nom de plume</span>
+                  <input
+                    value={authorForm.penName}
+                    onChange={(e) => setAuthorForm({ ...authorForm, penName: e.target.value })}
+                    required
+                    maxLength={80}
+                  />
+                </label>
+                <label>
+                  <span>Votre projet</span>
+                  <textarea
+                    rows={3}
+                    value={authorForm.bio}
+                    onChange={(e) => setAuthorForm({ ...authorForm, bio: e.target.value })}
+                    required
+                    minLength={40}
+                    maxLength={1200}
+                    placeholder="Quelques lignes sur vous et le roman que vous voulez écrire."
+                  />
+                </label>
+                <button className="btn btn-ghost btn-sm" type="submit">
+                  Demander le statut d’auteur
+                </button>
+              </form>
+            )}
+          </div>
         </div>
 
         <div className="tabs">

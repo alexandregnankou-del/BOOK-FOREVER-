@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import config from './config.mjs';
 
+
 export const db = new Database(config.dbFile);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
@@ -87,6 +88,23 @@ CREATE TABLE IF NOT EXISTS progress (
   UNIQUE (user_id, book_id)
 );
 
+
+/* ---------- v16 : abonnements et statut d'auteur ---------- */
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reference TEXT NOT NULL DEFAULT '',
+  method TEXT NOT NULL DEFAULT 'wave_link',
+  amount_xof INTEGER NOT NULL DEFAULT 2000,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','rejected','expired')),
+  period_start TEXT,
+  period_end TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  validated_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id, status);
+
 CREATE TABLE IF NOT EXISTS favorites (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -105,6 +123,21 @@ CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_orders_pending ON orders(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id);
 `);
+
+/* Colonnes ajoutées progressivement (v16) : ignorées si déjà présentes. */
+function addColumn(table, column, definition) {
+  const existing = db.prepare(`PRAGMA table_info(${table})`).all().map((row) => row.name);
+  if (!existing.includes(column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+addColumn('users', 'pen_name', "TEXT NOT NULL DEFAULT ''");
+addColumn('users', 'bio', "TEXT NOT NULL DEFAULT ''");
+addColumn('users', 'author_status', "TEXT NOT NULL DEFAULT ''");
+addColumn('users', 'author_requested_at', 'TEXT');
+addColumn('books', 'owner_id', 'INTEGER');
+
 
 export const DEFAULT_SETTINGS = {
   siteName: 'BOOK FOREVER',
@@ -181,4 +214,14 @@ export function uniqueSlug(base, table = 'books') {
   return slug;
 }
 
-
+/** Abonnement mensuel en cours (2000 FCFA / 30 jours). */
+export function hasActiveSubscription(userId) {
+  if (!userId) return false;
+  const row = db
+    .prepare("SELECT period_end FROM subscriptions WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1")
+    .get(userId);
+  if (!row) return false;
+  const end = row.period_end ? String(row.period_end).slice(0, 10) : null;
+  if (!end) return true;
+  return end >= new Date().toISOString().slice(0, 10);
+}

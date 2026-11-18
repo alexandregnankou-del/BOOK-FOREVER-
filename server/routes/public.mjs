@@ -1,8 +1,8 @@
 import express from 'express';
-import { db, getSettings, publicSite } from '../db.mjs';
+import { hasActiveSubscription, db, getSettings, publicSite } from '../db.mjs';
 import { currentUser } from '../auth.mjs';
 
-const APP_VERSION = '1.15.0';
+const APP_VERSION = '1.16.0';
 
 export const publicRoutes = express.Router();
 
@@ -67,7 +67,7 @@ publicRoutes.get('/health', (req, res) => {
   }
   res.status(checks.db ? 200 : 503).json({
     ok: checks.db,
-    release: 'v15',
+    release: 'v16',
     version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
@@ -90,12 +90,13 @@ publicRoutes.get('/books/:slug', (req, res) => {
   const user = currentUser(req);
   const paid = paidChapterIds(user?.id, book.id);
   const isAdmin = user?.role === 'admin';
+  const subscribed = hasActiveSubscription(user?.id);
   const chapters = db
     .prepare("SELECT * FROM chapters WHERE book_id = ? AND status = 'published' ORDER BY number")
     .all(book.id)
     .map((ch) => ({
       ...chapterSummary(ch),
-      unlocked: Boolean(ch.is_free) || isAdmin || paid.has(ch.id),
+      unlocked: Boolean(ch.is_free) || isAdmin || paid.has(ch.id) || subscribed,
     }));
 
   res.json({ book: bookCard(book), chapters });
@@ -113,7 +114,8 @@ publicRoutes.get('/books/:slug/chapters/:number', (req, res) => {
   const user = currentUser(req);
   const paid = paidChapterIds(user?.id, book.id);
   const settings = getSettings();
-  const unlocked = Boolean(chapter.is_free) || user?.role === 'admin' || paid.has(chapter.id);
+  const unlocked = Boolean(chapter.is_free) || user?.role === 'admin' || paid.has(chapter.id)
+    || hasActiveSubscription(user?.id);
 
   const neighbours = db
     .prepare("SELECT number, title FROM chapters WHERE book_id = ? AND status = 'published' ORDER BY number")

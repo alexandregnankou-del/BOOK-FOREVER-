@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'node:crypto';
-import { db, getSettings } from '../db.mjs';
+import { db, getSettings, countWords, uniqueSlug } from '../db.mjs';
 import { requireAuth } from '../auth.mjs';
 
 export const meRoutes = express.Router();
@@ -231,4 +231,160 @@ meRoutes.get('/overview', (req, res) => {
     favoritesCount: favorites.n || 0,
     purchasedChapters: purchases.n || 0,
   });
+});
+
+/* ---------- v16 : abonnement mensuel ---------- */
+
+const SUB_PRICE = 2000;
+const SUB_DAYS = 30;
+
+meRoutes.get('/subscription', (req, res) => {
+  const rows = db
+    .prepare('SELECT * FROM subscriptions WHERE user_id = ? ORDER BY id DESC LIMIT 10')
+    .all(req.user.id);
+  const active = rows.find((row) => row.status === 'active'
+    && (!row.period_end || String(row.period_end).slice(0, 10) >= new Date().toISOString().slice(0, 10)));
+  res.json({
+    priceXof: SUB_PRICE,
+    days: SUB_DAYS,
+    active: Boolean(active),
+    subscription: active || rows[0] || null,
+    history: rows,
+  });
+});
+
+meRoutes.post('/subscription', (req, res) => {
+  const method = String(req.body?.method || 'wave_link');
+  const reference = String(req.body?.reference || '').slice(0, 120);
+  if (!['wave_link', 'orange_money_direct'].includes(method)) {
+    return res.status(400).json({ error: 'Moyen de paiement inconnu.' });
+  }
+  const pending = db
+    .prepare("SELECT id FROM subscriptions WHERE user_id = ? AND status = 'pending'")
+    .get(req.user.id);
+  if (pending) {
+    return res.status(409).json({ error: 'Une demande d’abonnement est déjà en attente de validation.' });
+  }
+  db.prepare('INSERT INTO subscriptions (user_id, method, reference, amount_xof) VALUES (?, ?, ?, ?)')
+    .run(req.user.id, method, reference, SUB_PRICE);
+  res.status(201).json({
+    ok: true,
+    message: 'Demande enregistrée. Votre abonnement s’active dès validation du paiement.',
+  });
+});
+
+/* ---------- v16 : statut d'auteur ---------- */
+
+meRoutes.get('/author', (req, res) => {
+  const user = db
+    .prepare('SELECT pen_name, bio, author_status FROM users WHERE id = ?')
+    .get(req.user.id);
+  res.json({
+    status: user?.author_status || '',
+    penName: user?.pen_name || '',
+    bio: user?.bio || '',
+    canWrite: user?.author_status === 'approved',
+  });
+});
+
+meRoutes.post('/author', (req, res) => {
+  const penName = String(req.body?.penName || '').trim().slice(0, 80);
+  const bio = String(req.body?.bio || '').trim().slice(0, 1200);
+  if (penName.length < 2) return res.status(400).json({ error: 'Indiquez votre nom de plume.' });
+  if (bio.length < 40) {
+    return res.status(400).json({ error: 'Présentez votre projet en quelques lignes (40 caractères minimum).' });
+  }
+  db.prepare("UPDATE users SET pen_name = ?, bio = ?, author_status = 'pending', author_requested_at = CURRENT_TIMESTAMP WHERE id = ?")
+    .run(penName, bio, req.user.id);
+  res.json({ ok: true, message: 'Demande envoyée. Nous revenons vers vous par e-mail.' });
+});
+
+/* ---------- v16 : atelier d'écriture ---------- */
+
+function requireAuthor(req, res) {
+  const user = db.prepare('SELECT author_status, pen_name, name FROM users WHERE id = ?').get(req.user.id);
+  if (!user || user.author_status !== 'approved') {
+    res.status(403).json({ error: 'Atelier réservé aux auteurs approuvés.' });
+    return null;
+  }
+  return user;
+}
+
+meRoutes.get('/drafts', (req, res) => {
+  const author = requireAuthor(req, res);
+  if (!author) return;
+  const books = db
+    .prepare(`SELECT b.id, b.slug, b.title, b.tagline, b.status, b.updated_at,
+                     (SELECT COUNT(*) FROM chapters c WHERE c.book_id = b.id) AS chapters,
+                     (SELECT COALESCE(SUM(c.words),0) FROM chapters c WHERE c.book_id = b.id) AS words
+              FROM books b WHERE b.owner_id = ? ORDER BY b.updated_at DESC`)
+    .all(req.user.id);
+  res.json({ books });
+});
+
+meRoutes.post('/drafts', (req, res) => {
+  const author = requireAuthor(req, res);
+  if (!author) return;
+  const title = String(req.body?.title || '').trim().slice(0, 120);
+  if (title.length < 2) return res.status(400).json({ error: 'Donnez un titre à votre roman.' });
+  const tagline = String(req.body?.tagline || '').trim().slice(0, 180);
+  const synopsis = String(req.body?.synopsis || '').trim().slice(0, 3000);
+  const slug = uniqueSlug(title);
+  const info = db
+    .prepare(`INSERT INTO books (slug, title, author, tagline, synopsis, cover, status, owner_id, sort_order)
+              VALUES (?, ?, ?, ?, ?, '', 'draft', ?, 999)`)
+    .run(slug, title, author.pen_name || author.name || 'Auteur', tagline, synopsis, req.user.id);
+  res.status(201).json({ ok: true, slug, id: info.lastInsertRowid });
+});
+
+meRoutes.put('/drafts/:slug', (req, res) => {
+  const author = requireAuthor(req, res);
+  if (!author) return;
+  const book = db.prepare('SELECT * FROM books WHERE slug = ? AND owner_id = ?').get(req.params.slug, req.user.id);
+  if (!book) return res.status(404).json({ error: 'Roman introuvable dans votre atelier.' });
+  db.prepare('UPDATE books SET title = COALESCE(?, title), tagline = COALESCE(?, tagline), synopsis = COALESCE(?, synopsis), updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(
+      req.body?.title != null ? String(req.body.title).slice(0, 120) : null,
+      req.body?.tagline != null ? String(req.body.tagline).slice(0, 180) : null,
+      req.body?.synopsis != null ? String(req.body.synopsis).slice(0, 3000) : null,
+      book.id,
+    );
+  res.json({ ok: true });
+});
+
+meRoutes.get('/drafts/:slug', (req, res) => {
+  const author = requireAuthor(req, res);
+  if (!author) return;
+  const book = db.prepare('SELECT * FROM books WHERE slug = ? AND owner_id = ?').get(req.params.slug, req.user.id);
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+  const chapters = db
+    .prepare('SELECT number, title, words, status, updated_at FROM chapters WHERE book_id = ? ORDER BY number')
+    .all(book.id);
+  res.json({
+    book: { slug: book.slug, title: book.title, tagline: book.tagline, synopsis: book.synopsis, status: book.status },
+    chapters,
+  });
+});
+
+meRoutes.post('/drafts/:slug/chapters', (req, res) => {
+  const author = requireAuthor(req, res);
+  if (!author) return;
+  const book = db.prepare('SELECT * FROM books WHERE slug = ? AND owner_id = ?').get(req.params.slug, req.user.id);
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+  const number = Number(req.body?.number);
+  const title = String(req.body?.title || '').trim().slice(0, 160);
+  const text = String(req.body?.text || '');
+  if (!Number.isInteger(number) || number < 1) return res.status(400).json({ error: 'Numéro de chapitre invalide.' });
+  if (text.trim().length < 20) return res.status(400).json({ error: 'Le chapitre est trop court.' });
+  const words = countWords(text);
+  const existing = db.prepare('SELECT id FROM chapters WHERE book_id = ? AND number = ?').get(book.id, number);
+  if (existing) {
+    db.prepare('UPDATE chapters SET title = ?, text = ?, words = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(title, text, words, existing.id);
+  } else {
+    db.prepare("INSERT INTO chapters (book_id, number, title, text, words, is_free, status) VALUES (?, ?, ?, ?, ?, 0, 'draft')")
+      .run(book.id, number, title, text, words);
+  }
+  db.prepare('UPDATE books SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(book.id);
+  res.json({ ok: true, words });
 });

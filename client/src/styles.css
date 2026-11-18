@@ -1891,3 +1891,34 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   color: var(--muted, #7c7264);
 }
 .about-legal a { color: inherit; text-decoration: underline; }
+
+/* ---------- v16 : abonnement, statut d'auteur, atelier ---------- */
+.badge-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #14110E;
+  background: linear-gradient(135deg, #e3c469, #c9a227);
+  font-weight: 600;
+}
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sub-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
