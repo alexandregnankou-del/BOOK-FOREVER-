@@ -46,8 +46,13 @@ export default function Dashboard({ onNavigate }) {
           <strong>{formatXof(data.revenueXof)}</strong>
         </div>
         <div className="stat">
-          <span>Chapitres vendus</span>
+          <span>Ventes confirmées</span>
           <strong>{data.sales}</strong>
+          <span style={{ textTransform: 'none', letterSpacing: 0 }}>
+            {data.breakdown
+              ? `${data.breakdown.chapters.sales} ch. · ${data.breakdown.subscriptions.sales} formules · ${data.breakdown.packs.sales} packs`
+              : ''}
+          </span>
         </div>
         <div className="stat">
           <span>30 derniers jours</span>
@@ -57,6 +62,14 @@ export default function Dashboard({ onNavigate }) {
         <div className="stat">
           <span>Lecteurs inscrits</span>
           <strong>{data.counts.readers}</strong>
+        </div>
+        <div className="stat">
+          <span>À valider</span>
+          <strong>{(data.counts.pendingOrders || 0) + (data.counts.pendingSubs || 0) + (data.counts.pendingPacks || 0)}</strong>
+          <span style={{ textTransform: 'none', letterSpacing: 0 }}>
+            {data.counts.pendingOrders || 0} achats · {data.counts.pendingSubs || 0} formules ·{' '}
+            {data.counts.pendingPacks || 0} packs
+          </span>
         </div>
         <div className="stat">
           <span>Chapitres en ligne</span>

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -155,6 +156,42 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL DEFAULT ''
 );
 
+/* ---------- v22 : packs de crédits et parrainage ---------- */
+CREATE TABLE IF NOT EXISTS credit_orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reference TEXT NOT NULL UNIQUE,
+  method TEXT NOT NULL DEFAULT 'wave_link',
+  amount_xof INTEGER NOT NULL DEFAULT 1200,
+  credits INTEGER NOT NULL DEFAULT 5,
+  source TEXT NOT NULL DEFAULT 'pack',
+  note TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','rejected')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  validated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS credit_uses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  credit_order_id INTEGER NOT NULL REFERENCES credit_orders(id) ON DELETE CASCADE,
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS referrals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  referrer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  invited_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_credit_orders_user ON credit_orders(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_credit_uses_user ON credit_uses(user_id, book_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);
+
 CREATE INDEX IF NOT EXISTS idx_chapters_book ON chapters(book_id, number);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_orders_pending ON orders(status, created_at);
@@ -182,6 +219,12 @@ addColumn('orders', 'provider', "TEXT NOT NULL DEFAULT 'manual'");
 addColumn('orders', 'currency', "TEXT NOT NULL DEFAULT 'XOF'");
 addColumn('orders', 'expires_at', 'TEXT');
 addColumn('orders', 'verification_status', "TEXT NOT NULL DEFAULT 'manual'");
+/* v22 : pass court, packs de crédits, parrainage */
+addColumn('subscriptions', 'plan', "TEXT NOT NULL DEFAULT 'monthly'");
+addColumn('subscriptions', 'days', 'INTEGER NOT NULL DEFAULT 30');
+addColumn('users', 'referral_code', "TEXT NOT NULL DEFAULT ''");
+addColumn('users', 'referred_by', 'INTEGER');
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral ON users(referral_code) WHERE referral_code <> ''");
 
 
 export const DEFAULT_SETTINGS = {
@@ -205,6 +248,16 @@ export const DEFAULT_SETTINGS = {
   authorCertViews: '10000',
   authorCertHearts: '1000',
   authorCertFollowers: '500',
+  /* Offres (v22) : pass court, pack de crédits, abonnement, parrainage */
+  monthlyPrice: '2000',
+  monthlyDays: '30',
+  passPrice: '500',
+  passDays: '7',
+  packPrice: '1200',
+  packCredits: '5',
+  accessDays: '30',
+  referralTarget: '3',
+  referralReward: '1',
 };
 
 export function seedSettings() {
@@ -238,6 +291,142 @@ export function publicSite() {
     waveEnabled: s.waveEnabled === '1',
     orangeEnabled: s.orangeEnabled === '1',
     supportHours: s.supportHours,
+    accessDays: numberOr(s.accessDays, 30),
+    offers: {
+      monthly: { priceXof: numberOr(s.monthlyPrice, 2000), days: numberOr(s.monthlyDays, 30) },
+      pass: { priceXof: numberOr(s.passPrice, 500), days: numberOr(s.passDays, 7) },
+      pack: { priceXof: numberOr(s.packPrice, 1200), credits: numberOr(s.packCredits, 5) },
+      referral: { target: numberOr(s.referralTarget, 3), reward: numberOr(s.referralReward, 1) },
+    },
+  };
+}
+
+function numberOr(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/* ------------------------ v22 : offres et crédits ------------------------ */
+
+/** Les trois offres, prêtes à afficher, avec le prix réellement configuré. */
+export function offerList() {
+  const site = publicSite();
+  return {
+    accessDays: site.accessDays,
+    monthly: site.offers.monthly,
+    pass: site.offers.pass,
+    pack: site.offers.pack,
+    referral: site.offers.referral,
+  };
+}
+
+/** Crédits encore disponibles (packs validés moins chapitres déjà ouverts). */
+export function availableCredits(userId) {
+  if (!userId) return 0;
+  const row = db
+    .prepare(`
+      SELECT COALESCE(SUM(co.credits - (
+        SELECT COUNT(*) FROM credit_uses cu WHERE cu.credit_order_id = co.id
+      )), 0) AS n
+      FROM credit_orders co
+      WHERE co.user_id = ? AND co.status = 'active'`)
+    .get(userId);
+  return Math.max(0, Number(row?.n) || 0);
+}
+
+/** Chapitres ouverts par un crédit, encore valides, pour un roman donné. */
+export function creditChapterIds(userId, bookId) {
+  if (!userId) return new Set();
+  const rows = db
+    .prepare(`SELECT chapter_id FROM credit_uses
+              WHERE user_id = ? AND book_id = ?
+                AND (expires_at IS NULL OR date(expires_at) >= date('now'))`)
+    .all(userId, bookId);
+  return new Set(rows.map((r) => r.chapter_id));
+}
+
+/** Consomme un crédit sur un chapitre. Renvoie l'identifiant du pack utilisé, ou null. */
+export function spendCredit(userId, bookId, chapterId, days = 30) {
+  const tx = db.transaction(() => {
+    const pack = db
+      .prepare(`
+        SELECT co.id FROM credit_orders co
+        WHERE co.user_id = ? AND co.status = 'active'
+          AND (SELECT COUNT(*) FROM credit_uses cu WHERE cu.credit_order_id = co.id) < co.credits
+        ORDER BY co.id LIMIT 1`)
+      .get(userId);
+    if (!pack) return null;
+    /* Journal d'utilisation : un chapitre rouvert après expiration consomme un nouveau crédit. */
+    db.prepare(`INSERT INTO credit_uses (user_id, credit_order_id, book_id, chapter_id, expires_at)
+                VALUES (?, ?, ?, ?, date('now', ?))`)
+      .run(userId, pack.id, bookId, chapterId, `+${Math.max(1, Number(days) || 30)} days`);
+    return pack.id;
+  });
+  return tx();
+}
+
+/** Crédits offerts (parrainage, geste commercial). */
+export function grantCredits(userId, credits, source = 'parrainage', note = '') {
+  const amount = Math.max(1, Number(credits) || 1);
+  const reference = `BF-GIFT-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+  db.prepare(`INSERT INTO credit_orders (user_id, reference, method, amount_xof, credits, source, note, status, validated_at)
+              VALUES (?, ?, 'offert', 0, ?, ?, ?, 'active', CURRENT_TIMESTAMP)`)
+    .run(userId, reference, amount, String(source).slice(0, 40), String(note).slice(0, 200));
+  return amount;
+}
+
+/** Code de parrainage stable, créé à la première demande. */
+export function ensureReferralCode(userId) {
+  const row = db.prepare('SELECT referral_code FROM users WHERE id = ?').get(userId);
+  if (!row) return '';
+  if (row.referral_code) return row.referral_code;
+  let code = '';
+  do {
+    code = crypto.randomBytes(4).toString('hex').toUpperCase();
+  } while (db.prepare('SELECT 1 FROM users WHERE referral_code = ?').get(code));
+  db.prepare('UPDATE users SET referral_code = ? WHERE id = ?').run(code, userId);
+  return code;
+}
+
+/** Enregistre un filleul et offre un crédit tous les « target » amis invités. */
+export function registerReferral(invitedId, rawCode) {
+  const code = String(rawCode || '').trim().toUpperCase();
+  if (!code) return null;
+  const referrer = db.prepare('SELECT id FROM users WHERE referral_code = ?').get(code);
+  if (!referrer || referrer.id === invitedId) return null;
+  if (db.prepare('SELECT 1 FROM referrals WHERE invited_id = ?').get(invitedId)) return null;
+
+  const offers = offerList();
+  const target = Math.max(1, offers.referral.target);
+  const reward = Math.max(1, offers.referral.reward);
+
+  db.prepare('INSERT INTO referrals (referrer_id, invited_id) VALUES (?, ?)').run(referrer.id, invitedId);
+  db.prepare('UPDATE users SET referred_by = ? WHERE id = ?').run(referrer.id, invitedId);
+
+  const total = db.prepare('SELECT COUNT(*) AS n FROM referrals WHERE referrer_id = ?').get(referrer.id).n;
+  let gained = 0;
+  if (total % target === 0) {
+    gained = grantCredits(referrer.id, reward, 'parrainage', `${total} amis invités`);
+  }
+  return { referrerId: referrer.id, total, gained };
+}
+
+export function referralSummary(userId) {
+  const code = ensureReferralCode(userId);
+  const settings = offerList();
+  const target = Math.max(1, settings.referral.target);
+  const invited = db.prepare('SELECT COUNT(*) AS n FROM referrals WHERE referrer_id = ?').get(userId).n;
+  const earned = db
+    .prepare("SELECT COALESCE(SUM(credits),0) AS n FROM credit_orders WHERE user_id = ? AND source = 'parrainage'")
+    .get(userId).n;
+  return {
+    code,
+    invited,
+    target,
+    reward: settings.referral.reward,
+    earned,
+    nextIn: target - (invited % target),
+    remainingForReward: invited % target === 0 && invited > 0 ? target : target - (invited % target),
   };
 }
 

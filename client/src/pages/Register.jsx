@@ -5,7 +5,13 @@ import { useSession } from '../session.jsx';
 export default function Register() {
   const { register } = useSession();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    ref: (params?.get('ref') || '').toUpperCase(),
+  });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -57,6 +63,17 @@ export default function Register() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
+        </div>
+        <div className="field">
+          <label htmlFor="ref">Code de parrainage (facultatif)</label>
+          <input
+            id="ref"
+            value={form.ref}
+            onChange={(e) => setForm({ ...form, ref: e.target.value.toUpperCase() })}
+            maxLength={12}
+            placeholder="Ex. 8F3A1C2B"
+          />
+          <span className="hint">Un ami vous a invité ? Son code lui offre un chapitre.</span>
         </div>
         <button type="submit" className="btn btn-gold btn-block" disabled={busy}>
           {busy ? 'Création…' : 'Créer mon compte'}

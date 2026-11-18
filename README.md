@@ -1,7 +1,8 @@
 # BOOK FOREVER
 
 Librairie numérique d'ADISEN — section Littérature. Les deux premiers chapitres de chaque
-roman sont offerts, la suite se débloque à l'unité (300 FCFA), par Wave ou Orange Money.
+roman sont offerts ; la suite se débloque à l'unité (300 FCFA), par un pack de 5 chapitres,
+par un pass de 7 jours, ou par l'abonnement mensuel — Wave ou Orange Money.
 
 - **Site lecteurs** : accueil, bibliothèque, fiche roman, lecteur, contact, CGU, PWA installable
 - **Console d'administration** : `/console` — romans, chapitres, manuscrits, messages, ventes, réglages
@@ -111,6 +112,18 @@ versionné** : sans lui, Android refuse les mises à jour et les lecteurs doiven
 Une copie de sauvegarde et son mode d'emploi se trouvent dans `backups/apk-signing/`.
 
 ## Journal des versions
+
+### v22 — 19 novembre 2026
+- **Trois formules** en plus du chapitre à l'unité : pass `7 jours` (500 FCFA), pack de
+  `5 chapitres` (1 200 FCFA) et abonnement mensuel (2 000 FCFA). Prix et durées réglables en console.
+- **Pack de crédits** : le lecteur paie une fois, l'administrateur valide une fois, puis chaque
+  chapitre s'ouvre avec un crédit — sans nouveau transfert ni nouvelle vérification.
+- **Parrainage** : chaque lecteur a un code (`/inscription?ref=CODE`) ; `3` filleuls inscrits
+  donnent `1` chapitre offert, à chaque palier. Seuils réglables.
+- Droits de lecture : durée d'accès réglable (`30` jours par défaut) appliquée aux achats comme
+  aux crédits.
+- Console : ventilation des recettes (chapitres, formules, packs), file des packs à valider,
+  durée réelle par formule.
 
 ### v9 — 18 novembre 2026
 - Application Android : écran d'ouverture maison, écran hors ligne avec « Réessayer »,

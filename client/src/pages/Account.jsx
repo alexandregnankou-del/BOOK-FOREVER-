@@ -14,8 +14,11 @@ export default function Account() {
   const [subscription, setSubscription] = useState(null);
   const [author, setAuthor] = useState(null);
   const [authorForm, setAuthorForm] = useState({ penName: '', bio: '', declaration: false });
-  const [subBusy, setSubBusy] = useState(false);
+  const [subBusy, setSubBusy] = useState('');
   const [audience, setAudience] = useState(null);
+  const [credits, setCredits] = useState(null);
+  const [packOrder, setPackOrder] = useState(null);
+  const [referral, setReferral] = useState(null);
 
   useEffect(() => {
     if (ready && !user) navigate('/connexion?next=/compte');
@@ -28,6 +31,8 @@ export default function Account() {
     api.subscription().then(setSubscription).catch(() => {});
     api.authorStatus().then(setAuthor).catch(() => {});
     api.audience().then(setAudience).catch(() => {});
+    api.credits().then(setCredits).catch(() => {});
+    api.referral().then(setReferral).catch(() => {});
   }, [user]);
 
   if (!ready || !user) return <p className="empty">Chargement…</p>;
@@ -44,17 +49,51 @@ export default function Account() {
     }
   };
 
-  const subscribe = async () => {
-    setSubBusy(true);
+  const refreshOffers = () => {
+    api.subscription().then(setSubscription).catch(() => {});
+    api.credits().then(setCredits).catch(() => {});
+  };
+
+  const subscribe = async (plan) => {
+    setSubBusy(plan);
     setFeedback({ type: '', message: '' });
     try {
-      const res = await api.subscribe({ method: 'wave_link' });
+      const res = await api.subscribe({ method: 'wave_link', plan });
       setFeedback({ type: 'ok', message: res.message });
-      api.subscription().then(setSubscription).catch(() => {});
+      refreshOffers();
     } catch (err) {
       setFeedback({ type: 'error', message: err.message });
     } finally {
-      setSubBusy(false);
+      setSubBusy('');
+    }
+  };
+
+  const buyPack = async () => {
+    setSubBusy('pack');
+    setFeedback({ type: '', message: '' });
+    try {
+      const res = await api.requestPack({ method: 'wave_link' });
+      setPackOrder(res);
+      setFeedback({
+        type: 'ok',
+        message: `Pack enregistré. Indiquez la référence ${res.instructions.reference} lors du transfert.`,
+      });
+      api.credits().then(setCredits).catch(() => {});
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message });
+    } finally {
+      setSubBusy('');
+    }
+  };
+
+  const copyReferral = async () => {
+    if (!referral) return;
+    const link = `${window.location.origin}/inscription?ref=${referral.code}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setFeedback({ type: 'ok', message: 'Lien d’invitation copié.' });
+    } catch {
+      setFeedback({ type: 'error', message: `Copiez ce lien : ${link}` });
     }
   };
 
@@ -89,27 +128,115 @@ export default function Account() {
         <div className="about-grid" style={{ marginBottom: 22 }}>
           <div className="panel">
             <div className="sub-status">
-              <h2 style={{ margin: 0 }}>Abonnement</h2>
+              <h2 style={{ margin: 0 }}>Lire sans compter</h2>
               {subscription?.active ? (
-                <span className="badge-author">Actif</span>
+                <span className="badge-author">
+                  {subscription.plan === 'week' ? 'Pass actif' : 'Abonné'} · jusqu’au{' '}
+                  {formatDate(subscription.subscription.period_end)}
+                </span>
               ) : subscription?.subscription?.status === 'pending' ? (
                 <span className="hint">En attente de validation</span>
               ) : null}
             </div>
             <p className="hint" style={{ marginTop: 8 }}>
-              {formatXof(subscription?.priceXof || 2000)} par mois — tout le catalogue, sans compter. Sans
-              engagement.
+              Trois formules, un seul transfert Wave ou Orange Money par formule. Chaque chapitre acheté reste
+              ouvert {subscription?.accessDays || 30} jours.
             </p>
+
             {subscription?.active ? (
               <p>
-                Valable jusqu’au <strong>{formatDate(subscription.subscription.period_end)}</strong>.
+                Votre accès court jusqu’au{' '}
+                <strong>{formatDate(subscription.subscription.period_end)}</strong> : tout le catalogue est
+                ouvert.
               </p>
             ) : subscription?.subscription?.status === 'pending' ? (
-              <p className="hint">Nous vérifions votre transfert Wave ou Orange Money. Activation sous 24 h.</p>
+              <p className="hint">
+                Nous vérifions votre transfert. Activation sous 24 h — inutile de payer deux fois.
+              </p>
             ) : (
-              <button className="btn btn-gold" onClick={subscribe} disabled={subBusy}>
-                {subBusy ? 'Envoi…' : 'S’abonner — 2 000 FCFA / mois'}
-              </button>
+              <div className="offers">
+                <div className="offer">
+                  <span className="offer-tag">Pour finir un roman</span>
+                  <strong>{formatXof(subscription?.pass?.priceXof || 500)}</strong>
+                  <span className="hint">
+                    Pass {subscription?.pass?.days || 7} jours · tout le catalogue
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-gold btn-sm"
+                    onClick={() => subscribe('week')}
+                    disabled={Boolean(subBusy)}
+                  >
+                    {subBusy === 'week' ? 'Envoi…' : 'Prendre le pass'}
+                  </button>
+                </div>
+
+                <div className="offer">
+                  <span className="offer-tag">Le meilleur prix</span>
+                  <strong>{formatXof(credits?.pack?.priceXof || 1200)}</strong>
+                  <span className="hint">
+                    {credits?.pack?.credits || 5} chapitres au choix ·{' '}
+                    {formatXof(
+                      Math.round((credits?.pack?.priceXof || 1200) / (credits?.pack?.credits || 5)),
+                    )}{' '}
+                    le chapitre
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={buyPack}
+                    disabled={Boolean(subBusy)}
+                  >
+                    {subBusy === 'pack' ? 'Envoi…' : 'Prendre le pack'}
+                  </button>
+                </div>
+
+                <div className="offer">
+                  <span className="offer-tag">Pour les grands lecteurs</span>
+                  <strong>{formatXof(subscription?.monthly?.priceXof || 2000)}</strong>
+                  <span className="hint">
+                    Abonnement {subscription?.monthly?.days || 30} jours · tout le catalogue
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => subscribe('monthly')}
+                    disabled={Boolean(subBusy)}
+                  >
+                    {subBusy === 'monthly' ? 'Envoi…' : 'S’abonner'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <p className="hint" style={{ marginTop: 12 }}>
+              Crédits disponibles : <strong>{credits?.balance ?? 0}</strong> chapitre(s).
+              {credits?.pendingOrder ? ' Un pack est en attente de validation.' : ''}
+            </p>
+
+            {packOrder && (
+              <div className="instructions">
+                <strong>Référence à indiquer :</strong>
+                <div className="reference">{packOrder.instructions.reference}</div>
+                {packOrder.reused && <p className="muted">Vous avez déjà un pack en attente.</p>}
+                <ol>
+                  {packOrder.instructions.steps.map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ol>
+                {packOrder.instructions.url && (
+                  <p style={{ marginTop: 10 }}>
+                    <a
+                      href={packOrder.instructions.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-gold btn-sm"
+                    >
+                      Ouvrir la page Wave
+                    </a>
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -200,6 +327,46 @@ export default function Account() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {referral?.code && (
+          <div className="panel referral-panel" style={{ marginBottom: 22 }}>
+            <div className="sub-status">
+              <h2 style={{ margin: 0 }}>Parrainage</h2>
+              <span className="badge-author">{referral.invited} ami(s) inscrit(s)</span>
+            </div>
+            <p className="hint" style={{ marginTop: 8 }}>
+              {referral.target} amis inscrits avec votre code = {referral.reward} chapitre offert, à chaque
+              palier. Vous en avez déjà gagné <strong>{referral.earned}</strong>.
+            </p>
+            <div className="referral-box">
+              <code>{`${typeof window !== 'undefined' ? window.location.origin : ''}/inscription?ref=${referral.code}`}</code>
+              <button type="button" className="btn btn-gold btn-sm" onClick={copyReferral}>
+                Copier
+              </button>
+              <a
+                className="btn btn-ghost btn-sm"
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `Je lis sur BOOK FOREVER — deux chapitres offerts par roman. Rejoins-moi avec mon code ${referral.code} : ${
+                    typeof window !== 'undefined' ? window.location.origin : ''
+                  }/inscription?ref=${referral.code}`,
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Partager sur WhatsApp
+              </a>
+            </div>
+            <div className="audience-track" style={{ marginTop: 12 }}>
+              <div
+                className="audience-fill"
+                style={{ width: `${Math.round(((referral.invited % referral.target) / referral.target) * 100)}%` }}
+              />
+            </div>
+            <p className="hint" style={{ marginTop: 6 }}>
+              Encore {referral.nextIn} ami(s) avant le prochain chapitre offert.
+            </p>
           </div>
         )}
 

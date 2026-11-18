@@ -1,10 +1,18 @@
 import express from 'express';
-import { hasActiveSubscription, db, getSettings, publicSite } from '../db.mjs';
+import {
+  hasActiveSubscription,
+  db,
+  getSettings,
+  publicSite,
+  offerList,
+  availableCredits,
+  creditChapterIds,
+} from '../db.mjs';
 import { currentUser } from '../auth.mjs';
 import { config } from '../config.mjs';
 import { bootStats } from '../db.mjs';
 
-const APP_VERSION = '1.21.0';
+const APP_VERSION = '1.22.0';
 
 export const publicRoutes = express.Router();
 
@@ -52,6 +60,7 @@ function bookCard(row) {
   };
 }
 
+/** Chapitres ouverts pour ce lecteur : achat à l'unité ou crédit de pack. */
 function paidChapterIds(userId, bookId) {
   if (!userId) return new Set();
   const rows = db
@@ -59,7 +68,9 @@ function paidChapterIds(userId, bookId) {
               WHERE user_id = ? AND book_id = ? AND status = 'paid'
                 AND (expires_at IS NULL OR date(expires_at) >= date('now'))`)
     .all(userId, bookId);
-  return new Set(rows.map((r) => r.chapter_id));
+  const ids = new Set(rows.map((r) => r.chapter_id));
+  for (const id of creditChapterIds(userId, bookId)) ids.add(id);
+  return ids;
 }
 
 publicRoutes.get('/health', (req, res) => {
@@ -71,7 +82,7 @@ publicRoutes.get('/health', (req, res) => {
   }
   res.status(checks.db ? 200 : 503).json({
     ok: checks.db,
-    release: 'v21',
+    release: 'v22',
     version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
@@ -150,8 +161,17 @@ publicRoutes.get('/books/:slug/chapters/:number', (req, res) => {
   const user = currentUser(req);
   const paid = paidChapterIds(user?.id, book.id);
   const settings = getSettings();
-  const unlocked = Boolean(chapter.is_free) || user?.role === 'admin' || paid.has(chapter.id)
-    || hasActiveSubscription(user?.id);
+  const subscribed = hasActiveSubscription(user?.id);
+  const unlocked = Boolean(chapter.is_free) || user?.role === 'admin' || paid.has(chapter.id) || subscribed;
+  const access = chapter.is_free
+    ? 'free'
+    : user?.role === 'admin'
+      ? 'admin'
+      : paid.has(chapter.id)
+        ? 'purchased'
+        : subscribed
+          ? 'subscription'
+          : 'free';
 
   const neighbours = db
     .prepare("SELECT number, title FROM chapters WHERE book_id = ? AND status = 'published' ORDER BY number")
@@ -159,6 +179,7 @@ publicRoutes.get('/books/:slug/chapters/:number', (req, res) => {
   const index = neighbours.findIndex((c) => c.number === number);
 
   if (!unlocked) {
+    const offers = offerList();
     return res.status(402).json({
       locked: true,
       reason: 'locked',
@@ -175,6 +196,9 @@ publicRoutes.get('/books/:slug/chapters/:number', (req, res) => {
         title: 'Vous êtes arrivé à la suite de votre histoire !',
         message: `Débloquez ce chapitre pour seulement ${book.price_xof} FCFA.`,
         priceXof: book.price_xof,
+        accessDays: offers.accessDays,
+        credits: availableCredits(user?.id),
+        offers,
         methods: [
           { id: 'wave_link', label: 'Wave', enabled: settings.waveEnabled === '1' },
           { id: 'orange_money_direct', label: 'Orange Money', enabled: settings.orangeEnabled === '1' },
@@ -193,7 +217,7 @@ publicRoutes.get('/books/:slug/chapters/:number', (req, res) => {
     chapter: {
       ...chapterSummary(chapter, { includeText: true }),
       priceXof: chapter.is_free ? 0 : book.price_xof,
-      access: chapter.is_free ? 'free' : 'purchased',
+      access,
       downloadable: Boolean(book.download_allowed),
     },
     book: { slug: book.slug, title: book.title, author: book.author, cover: book.cover },

@@ -45,7 +45,11 @@ export default function Legal({ kind }) {
               Chaque demande génère une référence unique. Le chapitre est ouvert après vérification manuelle du
               règlement, en général sous 30 minutes pendant les heures d’ouverture.
             </li>
-            <li>Aucun prélèvement récurrent ni abonnement n’est mis en place.</li>
+            <li>
+              Aucun prélèvement automatique : le pass, le pack de chapitres et l’abonnement s’activent après un
+              transfert que vous faites vous-même, et ne se renouvellent jamais sans une nouvelle demande de
+              votre part.
+            </li>
             <li>
               En cas d’erreur de montant ou de référence, écrivez à {contact} avec la référence de la commande :
               nous corrigeons ou remboursons.

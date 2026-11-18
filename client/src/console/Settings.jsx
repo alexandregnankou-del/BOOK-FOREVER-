@@ -86,6 +86,81 @@ export default function Settings() {
                 onChange={(e) => setSettings({ ...settings, priceXof: e.target.value })}
               />
             </div>
+            <h2 style={{ fontSize: '1.1rem', margin: '18px 0 10px' }}>Formules</h2>
+            <div className="field">
+              <label>Pass court — prix (FCFA)</label>
+              <input
+                type="number"
+                value={settings.passPrice ?? 500}
+                onChange={(e) => setSettings({ ...settings, passPrice: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Pass court — durée (jours)</label>
+              <input
+                type="number"
+                value={settings.passDays ?? 7}
+                onChange={(e) => setSettings({ ...settings, passDays: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Pack — prix (FCFA)</label>
+              <input
+                type="number"
+                value={settings.packPrice ?? 1200}
+                onChange={(e) => setSettings({ ...settings, packPrice: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Pack — nombre de chapitres</label>
+              <input
+                type="number"
+                value={settings.packCredits ?? 5}
+                onChange={(e) => setSettings({ ...settings, packCredits: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Abonnement — prix (FCFA)</label>
+              <input
+                type="number"
+                value={settings.monthlyPrice ?? 2000}
+                onChange={(e) => setSettings({ ...settings, monthlyPrice: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Abonnement — durée (jours)</label>
+              <input
+                type="number"
+                value={settings.monthlyDays ?? 30}
+                onChange={(e) => setSettings({ ...settings, monthlyDays: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Durée d’accès à un chapitre acheté (jours)</label>
+              <input
+                type="number"
+                value={settings.accessDays ?? 30}
+                onChange={(e) => setSettings({ ...settings, accessDays: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Parrainage — amis nécessaires pour un chapitre offert</label>
+              <input
+                type="number"
+                value={settings.referralTarget ?? 3}
+                onChange={(e) => setSettings({ ...settings, referralTarget: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Parrainage — chapitres offerts par palier</label>
+              <input
+                type="number"
+                value={settings.referralReward ?? 1}
+                onChange={(e) => setSettings({ ...settings, referralReward: e.target.value })}
+              />
+            </div>
+
+            <h2 style={{ fontSize: '1.1rem', margin: '18px 0 10px' }}>Titres d’auteur</h2>
             <div className="field">
               <label>Palier « confirmé » — vues minimum</label>
               <input

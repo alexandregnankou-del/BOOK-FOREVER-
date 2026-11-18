@@ -1,6 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import { db } from '../db.mjs';
+import { db, registerReferral } from '../db.mjs';
 import { createUser, findByEmail, publicUser, setSession, clearSession, currentUser, hashPassword } from '../auth.mjs';
 
 export const authRoutes = express.Router();
@@ -15,8 +15,15 @@ authRoutes.post('/register', (req, res) => {
   if (password.length < 8) return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
   if (findByEmail(email)) return res.status(409).json({ error: 'Un compte existe déjà avec cette adresse. Connectez-vous.' });
   const user = createUser({ email, password, name: name || email.split('@')[0] });
+  /* Parrainage : le code est facultatif, un code inconnu n'empêche pas l'inscription. */
+  let referral = null;
+  try {
+    referral = registerReferral(user.id, req.body?.ref);
+  } catch (err) {
+    console.error('[parrainage]', err.message);
+  }
   setSession(res, user);
-  res.status(201).json({ user: publicUser(user) });
+  res.status(201).json({ user: publicUser(user), referral: referral || null });
 });
 
 authRoutes.post('/login', (req, res) => {

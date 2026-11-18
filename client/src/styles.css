@@ -2066,3 +2066,82 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
 @media (max-width: 720px) {
   .book-info-grid { grid-template-columns: 1fr; gap: 18px; }
 }
+/* ---------- v22 : formules (pass, pack, abonnement) et parrainage ---------- */
+
+.offers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.offer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #fffdf9, #fbf6ec);
+}
+
+.offer-best {
+  border-color: rgba(185, 139, 46, 0.55);
+  box-shadow: var(--shadow);
+}
+
+.offer-tag {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.offer strong {
+  font-family: var(--serif);
+  font-size: 1.7rem;
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.offer .hint {
+  flex: 1;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.offer .btn {
+  margin-top: 6px;
+  align-self: flex-start;
+}
+
+.paywall-offers {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  line-height: 1.5;
+}
+
+.referral-panel .referral-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.referral-panel .referral-box code {
+  flex: 1 1 240px;
+  padding: 10px 12px;
+  border: 1px dashed rgba(185, 139, 46, 0.5);
+  border-radius: 10px;
+  background: #fffdf8;
+  font-size: 0.82rem;
+  word-break: break-all;
+}
+
+@media (max-width: 720px) {
+  .offers {
+    grid-template-columns: 1fr;
+  }
+}

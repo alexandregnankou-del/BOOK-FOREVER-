@@ -15,6 +15,13 @@ const FALLBACK = {
   waveEnabled: true,
   orangeEnabled: true,
   supportHours: 'Lundi – samedi, 8h – 20h',
+  accessDays: 30,
+  offers: {
+    monthly: { priceXof: 2000, days: 30 },
+    pass: { priceXof: 500, days: 7 },
+    pack: { priceXof: 1200, credits: 5 },
+    referral: { target: 3, reward: 1 },
+  },
 };
 
 const SiteContext = createContext(FALLBACK);

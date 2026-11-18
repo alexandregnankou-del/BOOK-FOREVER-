@@ -43,7 +43,9 @@ export default function About() {
             </p>
             <p>
               La suite coûte {formatXof(stats.priceXof || site.priceXof)} le chapitre, réglable par Wave ou
-              Orange Money. Pas d’abonnement, pas de reconduction cachée : on achète ce qu’on lit.
+              Orange Money. Trois formules pour ceux qui lisent beaucoup : un pass de{' '}
+              {site.offers?.pass?.days || 7} jours, un pack de {site.offers?.pack?.credits || 5} chapitres, ou
+              l’abonnement au mois. Aucune reconduction automatique : vous décidez à chaque fois.
             </p>
           </div>
 

@@ -188,6 +188,24 @@ export default function Reader() {
     }
   };
 
+  /* Ouvre le chapitre avec un crédit du pack : aucun nouveau paiement. */
+  const unlockWithCredit = async () => {
+    if (!user) {
+      navigate(`/connexion?next=${encodeURIComponent(`/lire/${slug}/${number}`)}`);
+      return;
+    }
+    setBusy(true);
+    setNotice('');
+    try {
+      await api.useCredit({ bookSlug: slug, chapterNumber: Number(number) });
+      window.location.reload();
+    } catch (err) {
+      setNotice(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openToc = async () => {
     setTocOpen((open) => !open);
     if (tocItems.length || tocLoading) return;
@@ -367,10 +385,42 @@ export default function Reader() {
                 <button type="button" className="btn btn-gold btn-block" onClick={startPurchase} disabled={busy}>
                   {busy ? 'Préparation…' : user ? `Débloquer pour ${formatXof(chapter.priceXof)}` : 'Se connecter pour débloquer'}
                 </button>
+
+                {user && (payload.paywall.credits || 0) > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-block"
+                    style={{ marginTop: 10 }}
+                    onClick={unlockWithCredit}
+                    disabled={busy}
+                  >
+                    Ouvrir avec un crédit ({payload.paywall.credits} restant
+                    {payload.paywall.credits > 1 ? 's' : ''})
+                  </button>
+                )}
+
                 <p className="muted" style={{ fontSize: '0.78rem', marginTop: 12 }}>
                   Aucun prélèvement automatique. Le chapitre s’ouvre après vérification du paiement (moins de 30
-                  min en journée).
+                  min en journée), puis reste accessible {payload.paywall.accessDays || 30} jours.
                 </p>
+
+                {payload.paywall.offers && (
+                  <div className="paywall-offers">
+                    <span className="hint">
+                      Plusieurs chapitres d’avance ?{' '}
+                      <Link to="/compte">
+                        pack {payload.paywall.offers.pack.credits} chapitres à{' '}
+                        {formatXof(payload.paywall.offers.pack.priceXof)}
+                      </Link>{' '}
+                      ou{' '}
+                      <Link to="/compte">
+                        pass {payload.paywall.offers.pass.days} jours à{' '}
+                        {formatXof(payload.paywall.offers.pass.priceXof)}
+                      </Link>
+                      .
+                    </span>
+                  </div>
+                )}
               </>
             ) : (
               <div className="instructions">

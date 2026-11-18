@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
-import { db, getSettings, countWords, slugify, uniqueSlug } from '../db.mjs';
+import { db, getSettings, countWords, slugify, uniqueSlug, grantCredits } from '../db.mjs';
 import { requireAdmin } from '../auth.mjs';
 import config from '../config.mjs';
 
@@ -13,6 +13,12 @@ adminRoutes.get('/stats', (req, res) => {
   const last30 = db
     .prepare("SELECT COALESCE(SUM(amount_xof),0) AS total, COUNT(*) AS sales FROM orders WHERE status = 'paid' AND validated_at >= datetime('now','-30 day')")
     .get();
+  const subsRevenue = db
+    .prepare("SELECT COALESCE(SUM(amount_xof),0) AS total, COUNT(*) AS sales FROM subscriptions WHERE status = 'active'")
+    .get();
+  const packsRevenue = db
+    .prepare("SELECT COALESCE(SUM(amount_xof),0) AS total, COUNT(*) AS sales, COALESCE(SUM(credits),0) AS credits FROM credit_orders WHERE status = 'active'")
+    .get();
   const counts = {
     books: db.prepare('SELECT COUNT(*) AS n FROM books').get().n,
     published: db.prepare("SELECT COUNT(*) AS n FROM books WHERE status = 'published'").get().n,
@@ -20,6 +26,8 @@ adminRoutes.get('/stats', (req, res) => {
     chaptersWithText: db.prepare("SELECT COUNT(*) AS n FROM chapters WHERE text <> ''").get().n,
     readers: db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'reader'").get().n,
     pendingOrders: db.prepare("SELECT COUNT(*) AS n FROM orders WHERE status = 'pending'").get().n,
+    pendingSubs: db.prepare("SELECT COUNT(*) AS n FROM subscriptions WHERE status = 'pending'").get().n,
+    pendingPacks: db.prepare("SELECT COUNT(*) AS n FROM credit_orders WHERE status = 'pending'").get().n,
     newMessages: db.prepare("SELECT COUNT(*) AS n FROM messages WHERE status = 'new'").get().n,
   };
   const providers = {
@@ -36,7 +44,19 @@ adminRoutes.get('/stats', (req, res) => {
       FROM orders o JOIN books b ON b.id = o.book_id JOIN chapters c ON c.id = o.chapter_id JOIN users u ON u.id = o.user_id
       ORDER BY o.created_at DESC LIMIT 8`)
     .all();
-  res.json({ revenueXof: revenue.total, sales: revenue.sales, last30: { revenueXof: last30.total, sales: last30.sales }, counts, providers, recent });
+  res.json({
+    revenueXof: revenue.total + subsRevenue.total + packsRevenue.total,
+    sales: revenue.sales + subsRevenue.sales + packsRevenue.sales,
+    last30: { revenueXof: last30.total, sales: last30.sales },
+    breakdown: {
+      chapters: { revenueXof: revenue.total, sales: revenue.sales },
+      subscriptions: { revenueXof: subsRevenue.total, sales: subsRevenue.sales },
+      packs: { revenueXof: packsRevenue.total, sales: packsRevenue.sales, credits: packsRevenue.credits },
+    },
+    counts,
+    providers,
+    recent,
+  });
 });
 
 /* ---------------------------------- Romans --------------------------------- */
@@ -351,8 +371,9 @@ adminRoutes.post('/orders/:id/validate', (req, res) => {
   if (['wave_api', 'orange_api', 'mtn_momo', 'moov', 'cinetpay', 'card'].includes(row.method)) {
     return res.status(400).json({ error: 'Un paiement automatique ne peut pas être validé à la main.' });
   }
+  const accessDays = Math.max(1, Number(getSettings().accessDays) || 30);
   db.prepare(`UPDATE orders SET status = 'paid', validated_at = CURRENT_TIMESTAMP,
-              expires_at = date('now', '+30 days'),
+              expires_at = date('now', '+${accessDays} days'),
               verification_status = 'verified',
               channel = COALESCE(NULLIF(channel, ''), 'WEB_PAYMENT'),
               provider = CASE method
@@ -386,7 +407,9 @@ adminRoutes.get('/settings', (req, res) => res.json({ settings: getSettings(), p
 
 adminRoutes.patch('/settings', (req, res) => {
   const allowed = ['siteName', 'siteTagline', 'contactEmail', 'contactPhone', 'waveLink', 'orangeNumber',
-    'priceXof', 'freeChapters', 'address', 'publisher', 'waveEnabled', 'orangeEnabled', 'supportHours'];
+    'priceXof', 'freeChapters', 'address', 'publisher', 'waveEnabled', 'orangeEnabled', 'supportHours',
+    'monthlyPrice', 'monthlyDays', 'passPrice', 'passDays', 'packPrice', 'packCredits', 'accessDays',
+    'referralTarget', 'referralReward'];
   const upsert = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
   const tx = db.transaction(() => {
     for (const key of allowed) {
@@ -431,12 +454,49 @@ adminRoutes.get('/subscriptions', (req, res) => {
 adminRoutes.post('/subscriptions/:id/validate', (req, res) => {
   const sub = db.prepare('SELECT * FROM subscriptions WHERE id = ?').get(Number(req.params.id));
   if (!sub) return res.status(404).json({ error: 'Abonnement introuvable.' });
+  const days = Math.max(1, Number(sub.days) || (sub.plan === 'week' ? 7 : 30));
   const start = new Date();
-  const end = new Date(start.getTime() + 30 * 24 * 3600 * 1000);
+  const end = new Date(start.getTime() + days * 24 * 3600 * 1000);
   db.prepare(`UPDATE subscriptions SET status = 'active', period_start = ?, period_end = ?,
               validated_at = CURRENT_TIMESTAMP WHERE id = ?`)
     .run(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10), sub.id);
-  res.json({ ok: true, periodEnd: end.toISOString().slice(0, 10) });
+  res.json({ ok: true, days, periodEnd: end.toISOString().slice(0, 10) });
+});
+
+/* ---------- v22 : packs de crédits ---------- */
+
+adminRoutes.get('/credits', (req, res) => {
+  const rows = db
+    .prepare(`SELECT co.*, u.email, u.name,
+                     (SELECT COUNT(*) FROM credit_uses cu WHERE cu.credit_order_id = co.id) AS used
+              FROM credit_orders co JOIN users u ON u.id = co.user_id
+              ORDER BY CASE co.status WHEN 'pending' THEN 0 ELSE 1 END, co.id DESC LIMIT 200`)
+    .all();
+  res.json({ orders: rows });
+});
+
+adminRoutes.post('/credits/:id/validate', (req, res) => {
+  const row = db.prepare('SELECT * FROM credit_orders WHERE id = ?').get(Number(req.params.id));
+  if (!row) return res.status(404).json({ error: 'Pack introuvable.' });
+  if (row.status === 'active') return res.status(409).json({ error: 'Pack déjà activé.' });
+  db.prepare("UPDATE credit_orders SET status = 'active', validated_at = CURRENT_TIMESTAMP WHERE id = ?").run(row.id);
+  res.json({ ok: true, credits: row.credits });
+});
+
+adminRoutes.post('/credits/:id/reject', (req, res) => {
+  const row = db.prepare('SELECT * FROM credit_orders WHERE id = ?').get(Number(req.params.id));
+  if (!row) return res.status(404).json({ error: 'Pack introuvable.' });
+  db.prepare("UPDATE credit_orders SET status = 'rejected', validated_at = CURRENT_TIMESTAMP WHERE id = ?").run(row.id);
+  res.json({ ok: true });
+});
+
+/** Crédit offert à la main (geste commercial, dédommagement). */
+adminRoutes.post('/users/:id/credits', (req, res) => {
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(Number(req.params.id));
+  if (!user) return res.status(404).json({ error: 'Compte introuvable.' });
+  const credits = Math.min(20, Math.max(1, Number(req.body?.credits) || 1));
+  const granted = grantCredits(user.id, credits, 'geste', String(req.body?.note || 'Geste commercial').slice(0, 200));
+  res.json({ ok: true, credits: granted });
 });
 
 adminRoutes.post('/subscriptions/:id/reject', (req, res) => {

@@ -1,14 +1,24 @@
 import express from 'express';
 import crypto from 'node:crypto';
-import { db, getSettings, countWords, uniqueSlug } from '../db.mjs';
+import {
+  db,
+  getSettings,
+  countWords,
+  uniqueSlug,
+  offerList,
+  availableCredits,
+  creditChapterIds,
+  spendCredit,
+  referralSummary,
+} from '../db.mjs';
 import { requireAuth } from '../auth.mjs';
 
 export const meRoutes = express.Router();
 meRoutes.use(requireAuth);
 
-function makeReference() {
+function makeReference(prefix = 'BF') {
   const year = new Date().getFullYear();
-  return `BF-${year}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  return `${prefix}-${year}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 }
 
 meRoutes.get('/purchases', (req, res) => {
@@ -92,18 +102,21 @@ meRoutes.post('/purchases', (req, res) => {
   });
 });
 
-function buildInstructions(settings, method, reference, amount) {
+function buildInstructions(settings, method, reference, amount, subject = '') {
+  const what = subject ? ` (${subject})` : '';
+  const tail = 'Revenez ici : tout s’ouvre dès validation (sous 30 min en journée).';
   if (method === 'wave_link') {
     return {
       method,
       label: 'Wave',
       amountXof: amount,
       reference,
+      subject,
       url: settings.waveLink,
       steps: [
         'Ouvrez la page Wave ADISEN HOUSE avec le bouton ci-dessous.',
-        `Envoyez ${amount} FCFA en indiquant la référence ${reference}.`,
-        'Revenez ici : votre chapitre s’ouvre dès validation (sous 30 min en journée).',
+        `Envoyez ${amount} FCFA${what} en indiquant la référence ${reference}.`,
+        tail,
       ],
     };
   }
@@ -113,10 +126,11 @@ function buildInstructions(settings, method, reference, amount) {
     amountXof: amount,
     reference,
     number: settings.orangeNumber,
+    subject,
     steps: [
       `Composez #144# puis choisissez « Transfert d’argent » vers le ${settings.orangeNumber}.`,
-      `Envoyez ${amount} FCFA en indiquant la référence ${reference}.`,
-      'Revenez ici : votre chapitre s’ouvre dès validation (sous 30 min en journée).',
+      `Envoyez ${amount} FCFA${what} en indiquant la référence ${reference}.`,
+      tail,
     ],
   };
 }
@@ -234,21 +248,37 @@ meRoutes.get('/overview', (req, res) => {
   });
 });
 
-/* ---------- v16 : abonnement mensuel ---------- */
+/* ---------- v16 : abonnement mensuel · v22 : pass 7 jours ---------- */
 
-const SUB_PRICE = 2000;
-const SUB_DAYS = 30;
+function planOf(plan) {
+  const offers = offerList();
+  if (plan === 'week') return { plan: 'week', label: 'Pass 7 jours', priceXof: offers.pass.priceXof, days: offers.pass.days };
+  return { plan: 'monthly', label: 'Abonnement mensuel', priceXof: offers.monthly.priceXof, days: offers.monthly.days };
+}
+
+meRoutes.get('/offers', (req, res) => {
+  res.json({
+    ...offerList(),
+    credits: availableCredits(req.user.id),
+  });
+});
 
 meRoutes.get('/subscription', (req, res) => {
   const rows = db
     .prepare('SELECT * FROM subscriptions WHERE user_id = ? ORDER BY id DESC LIMIT 10')
     .all(req.user.id);
+  const today = new Date().toISOString().slice(0, 10);
   const active = rows.find((row) => row.status === 'active'
-    && (!row.period_end || String(row.period_end).slice(0, 10) >= new Date().toISOString().slice(0, 10)));
+    && (!row.period_end || String(row.period_end).slice(0, 10) >= today));
+  const offers = offerList();
   res.json({
-    priceXof: SUB_PRICE,
-    days: SUB_DAYS,
+    priceXof: offers.monthly.priceXof,
+    days: offers.monthly.days,
+    pass: offers.pass,
+    monthly: offers.monthly,
+    accessDays: offers.accessDays,
     active: Boolean(active),
+    plan: active?.plan || '',
     subscription: active || rows[0] || null,
     history: rows,
   });
@@ -257,6 +287,7 @@ meRoutes.get('/subscription', (req, res) => {
 meRoutes.post('/subscription', (req, res) => {
   const method = String(req.body?.method || 'wave_link');
   const reference = String(req.body?.reference || '').slice(0, 120);
+  const chosen = planOf(String(req.body?.plan || 'monthly'));
   if (!['wave_link', 'orange_money_direct'].includes(method)) {
     return res.status(400).json({ error: 'Moyen de paiement inconnu.' });
   }
@@ -266,12 +297,104 @@ meRoutes.post('/subscription', (req, res) => {
   if (pending) {
     return res.status(409).json({ error: 'Une demande d’abonnement est déjà en attente de validation.' });
   }
-  db.prepare('INSERT INTO subscriptions (user_id, method, reference, amount_xof) VALUES (?, ?, ?, ?)')
-    .run(req.user.id, method, reference, SUB_PRICE);
+  db.prepare('INSERT INTO subscriptions (user_id, method, reference, amount_xof, plan, days) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(req.user.id, method, reference, chosen.priceXof, chosen.plan, chosen.days);
   res.status(201).json({
     ok: true,
-    message: 'Demande enregistrée. Votre abonnement s’active dès validation du paiement.',
+    plan: chosen.plan,
+    amountXof: chosen.priceXof,
+    days: chosen.days,
+    instructions: buildInstructions(getSettings(), method, reference, chosen.priceXof, chosen.label),
+    message: `${chosen.label} enregistré. Il s’active dès validation du paiement.`,
   });
+});
+
+/* ---------- v22 : pack de crédits ---------- */
+
+meRoutes.get('/credits', (req, res) => {
+  const orders = db
+    .prepare('SELECT id, reference, method, amount_xof, credits, source, note, status, created_at, validated_at\n            FROM credit_orders WHERE user_id = ? ORDER BY id DESC LIMIT 30')
+    .all(req.user.id);
+  const uses = db
+    .prepare(`SELECT cu.created_at, cu.expires_at, b.title AS book_title, c.number, c.title AS chapter_title
+              FROM credit_uses cu JOIN books b ON b.id = cu.book_id JOIN chapters c ON c.id = cu.chapter_id
+              WHERE cu.user_id = ? ORDER BY cu.id DESC LIMIT 30`)
+    .all(req.user.id);
+  res.json({
+    balance: availableCredits(req.user.id),
+    pack: offerList().pack,
+    orders,
+    uses,
+    pendingOrder: orders.find((o) => o.status === 'pending') || null,
+  });
+});
+
+meRoutes.post('/credits', (req, res) => {
+  const method = String(req.body?.method || 'wave_link');
+  if (!['wave_link', 'orange_money_direct'].includes(method)) {
+    return res.status(400).json({ error: 'Moyen de paiement inconnu.' });
+  }
+  const pack = offerList().pack;
+  const pending = db
+    .prepare("SELECT * FROM credit_orders WHERE user_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1")
+    .get(req.user.id);
+  if (pending) {
+    return res.json({
+      reused: true,
+      order: {
+        reference: pending.reference,
+        amountXof: pending.amount_xof,
+        credits: pending.credits,
+        method: pending.method,
+        status: pending.status,
+      },
+      instructions: buildInstructions(getSettings(), pending.method, pending.reference, pending.amount_xof, `Pack ${pending.credits} chapitres`),
+    });
+  }
+  const reference = makeReference('BF-PACK');
+  db.prepare(`INSERT INTO credit_orders (user_id, reference, method, amount_xof, credits, source, status)
+              VALUES (?, ?, ?, ?, ?, 'pack', 'pending')`)
+    .run(req.user.id, reference, method, pack.priceXof, pack.credits);
+  res.status(201).json({
+    order: { reference, amountXof: pack.priceXof, credits: pack.credits, method, status: 'pending' },
+    instructions: buildInstructions(getSettings(), method, reference, pack.priceXof, `Pack ${pack.credits} chapitres`),
+  });
+});
+
+/** Ouvre un chapitre avec un crédit du pack, sans nouveau paiement. */
+meRoutes.post('/credits/use', (req, res) => {
+  const book = db.prepare('SELECT * FROM books WHERE slug = ?').get(String(req.body?.bookSlug || ''));
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+  const chapter = db
+    .prepare("SELECT * FROM chapters WHERE book_id = ? AND number = ? AND status = 'published'")
+    .get(book.id, Number(req.body?.chapterNumber));
+  if (!chapter) return res.status(404).json({ error: 'Chapitre introuvable.' });
+  if (chapter.is_free) return res.status(400).json({ error: 'Ce chapitre est déjà offert.' });
+
+  const already = db
+    .prepare(`SELECT id FROM orders WHERE user_id = ? AND chapter_id = ? AND status = 'paid'
+              AND (expires_at IS NULL OR date(expires_at) >= date('now'))`)
+    .get(req.user.id, chapter.id);
+  if (already || creditChapterIds(req.user.id, book.id).has(chapter.id)) {
+    return res.status(409).json({ error: 'Ce chapitre est déjà débloqué sur votre compte.' });
+  }
+
+  const settings = getSettings();
+  const days = Number(settings.accessDays) || 30;
+  const used = spendCredit(req.user.id, book.id, chapter.id, days);
+  if (!used) {
+    return res.status(409).json({
+      error: 'Aucun crédit disponible. Le pack s’active après vérification de votre paiement.',
+      code: 'no_credit',
+    });
+  }
+  res.json({ ok: true, unlocked: true, balance: availableCredits(req.user.id), accessDays: days });
+});
+
+/* ---------- v22 : parrainage ---------- */
+
+meRoutes.get('/referral', (req, res) => {
+  res.json(referralSummary(req.user.id));
 });
 
 /* ---------- v16 : statut d'auteur ---------- */

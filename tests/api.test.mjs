@@ -266,3 +266,122 @@ test('service worker jamais mis en cache', async () => {
   assert.equal(res.status, 200);
   assert.match(res.headers.get('cache-control') || '', /no-cache/);
 });
+
+
+/* ---------- v22 : formules, packs de crédits et parrainage ---------- */
+
+test('offres : pass 7 jours, pack de 5 chapitres, abonnement mensuel', async () => {
+  const { status, json } = await reader('/api/me/offers');
+  assert.equal(status, 200);
+  assert.equal(json.pass.priceXof, 500);
+  assert.equal(json.pass.days, 7);
+  assert.equal(json.pack.priceXof, 1200);
+  assert.equal(json.pack.credits, 5);
+  assert.equal(json.monthly.priceXof, 2000);
+  assert.equal(json.referral.target, 3);
+  assert.equal(json.credits, 0);
+});
+
+test('pack de crédits : demande, validation, ouverture d’un chapitre', async () => {
+  const asked = await reader('/api/me/credits', { method: 'POST', body: { method: 'wave_link' } });
+  assert.equal(asked.status, 201);
+  assert.equal(asked.json.order.amountXof, 1200);
+  assert.equal(asked.json.order.credits, 5);
+  assert.match(asked.json.order.reference, /^BF-PACK-/);
+  assert.equal(asked.json.instructions.amountXof, 1200);
+
+  const again = await reader('/api/me/credits', { method: 'POST', body: { method: 'wave_link' } });
+  assert.equal(again.json.reused, true);
+  assert.equal(again.json.order.reference, asked.json.order.reference);
+
+  const packs = await admin('/api/admin/credits');
+  const pending = packs.json.orders.find((p) => p.status === 'pending');
+  assert.ok(pending, 'le pack doit apparaître en attente');
+  const validated = await admin(`/api/admin/credits/${pending.id}/validate`, { method: 'POST', body: {} });
+  assert.equal(validated.status, 200);
+  assert.equal(validated.json.credits, 5);
+
+  const balance = await reader('/api/me/credits');
+  assert.equal(balance.json.balance, 5);
+
+  const used = await reader('/api/me/credits/use', {
+    method: 'POST',
+    body: { bookSlug: 'les-larmes-d-une-plume', chapterNumber: 4 },
+  });
+  assert.equal(used.status, 200);
+  assert.equal(used.json.balance, 4);
+
+  const chapter = await reader('/api/books/les-larmes-d-une-plume/chapters/4');
+  assert.equal(chapter.status, 200);
+  assert.ok(chapter.json.chapter.text.length > 10);
+
+  const twice = await reader('/api/me/credits/use', {
+    method: 'POST',
+    body: { bookSlug: 'les-larmes-d-une-plume', chapterNumber: 4 },
+  });
+  assert.equal(twice.status, 409);
+});
+
+test('pass 7 jours : activation par l’administrateur, catalogue ouvert', async () => {
+  const asked = await reader('/api/me/subscription', {
+    method: 'POST',
+    body: { method: 'wave_link', plan: 'week' },
+  });
+  assert.equal(asked.status, 201);
+  assert.equal(asked.json.amountXof, 500);
+  assert.equal(asked.json.days, 7);
+
+  const list = await admin('/api/admin/subscriptions');
+  const pending = list.json.subscriptions.find((s) => s.status === 'pending');
+  assert.ok(pending, 'le pass doit apparaître en attente');
+  const validated = await admin(`/api/admin/subscriptions/${pending.id}/validate`, { method: 'POST', body: {} });
+  assert.equal(validated.status, 200);
+  assert.equal(validated.json.days, 7);
+
+  const end = new Date(`${validated.json.periodEnd}T00:00:00Z`);
+  const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  const diff = Math.round((end - today) / 86400000);
+  assert.ok(diff === 6 || diff === 7, `période de 7 jours attendue, reçue ${diff}`);
+
+  const chapter = await reader('/api/books/les-larmes-d-une-plume/chapters/6');
+  assert.equal(chapter.status, 200);
+  assert.equal(chapter.json.chapter.access, 'subscription');
+});
+
+test('parrainage : trois filleuls donnent un chapitre offert', async () => {
+  const mine = await reader('/api/me/referral');
+  assert.equal(mine.status, 200);
+  assert.match(mine.json.code, /^[A-F0-9]{8}$/);
+
+  for (let i = 1; i <= 3; i += 1) {
+    const invited = client();
+    const res = await invited('/api/auth/register', {
+      method: 'POST',
+      body: {
+        email: `filleul${i}@test.ci`,
+        password: 'MotDePasse123',
+        name: `Filleul ${i}`,
+        ref: mine.json.code,
+      },
+    });
+    assert.equal(res.status, 201);
+    assert.ok(res.json.referral, 'le parrainage doit être enregistré');
+  }
+
+  const after = await reader('/api/me/referral');
+  assert.equal(after.json.invited, 3);
+  assert.equal(after.json.earned, 1);
+
+  const credits = await reader('/api/me/credits');
+  assert.equal(credits.json.balance, 5, '4 crédits du pack + 1 offert');
+});
+
+test('un code de parrainage inconnu n’empêche pas l’inscription', async () => {
+  const fresh = client();
+  const res = await fresh('/api/auth/register', {
+    method: 'POST',
+    body: { email: 'sansparrain@test.ci', password: 'MotDePasse123', ref: 'ZZZZZZZZ' },
+  });
+  assert.equal(res.status, 201);
+  assert.equal(res.json.referral, null);
+});

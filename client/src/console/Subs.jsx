@@ -8,9 +8,15 @@ const STATUS = {
   expired: 'Expiré',
 };
 
+const PLAN = {
+  week: 'Pass 7 jours',
+  monthly: 'Abonnement mensuel',
+};
+
 export default function Subs() {
   const [subscriptions, setSubscriptions] = useState([]);
   const [authors, setAuthors] = useState([]);
+  const [packs, setPacks] = useState([]);
   const [notice, setNotice] = useState('');
 
   const load = () => {
@@ -21,6 +27,10 @@ export default function Subs() {
     fetch('/api/admin/authors', { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => setAuthors(data.authors || []))
+      .catch(() => {});
+    fetch('/api/admin/credits', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => setPacks(data.orders || []))
       .catch(() => {});
   };
 
@@ -41,21 +51,24 @@ export default function Subs() {
 
   const pendingSubs = subscriptions.filter((s) => s.status === 'pending');
   const pendingAuthors = authors.filter((a) => a.author_status === 'pending');
+  const pendingPacks = packs.filter((p) => p.status === 'pending');
 
   return (
     <div>
       {notice && <p className="ok">{notice}</p>}
 
-      <h2>Abonnements en attente ({pendingSubs.length})</h2>
+      <h2>Abonnements et pass en attente ({pendingSubs.length})</h2>
       <p className="hint">
-        Vérifiez le transfert de 2 000 FCFA dans votre application Wave ou Orange Money, puis activez :
-        30 jours d’accès à tout le catalogue.
+        Vérifiez le transfert dans votre application Wave ou Orange Money en retrouvant le montant et la
+        référence, puis activez. Le pass ouvre 7 jours, l’abonnement 30 jours.
       </p>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Lecteur</th>
+              <th>Formule</th>
+              <th>Montant</th>
               <th>Moyen</th>
               <th>Référence</th>
               <th>Date</th>
@@ -65,7 +78,7 @@ export default function Subs() {
           <tbody>
             {pendingSubs.length === 0 && (
               <tr>
-                <td colSpan={5} className="muted">
+                <td colSpan={7} className="muted">
                   Aucune demande en attente.
                 </td>
               </tr>
@@ -77,14 +90,66 @@ export default function Subs() {
                   <br />
                   <span className="hint">{sub.email}</span>
                 </td>
+                <td>{PLAN[sub.plan] || PLAN.monthly}</td>
+                <td>{sub.amount_xof} FCFA</td>
                 <td>{sub.method === 'orange_money_direct' ? 'Orange Money' : 'Wave'}</td>
                 <td>{sub.reference || '—'}</td>
                 <td>{formatDate(sub.created_at)}</td>
                 <td>
                   <button className="btn btn-gold btn-sm" onClick={() => act(`/api/admin/subscriptions/${sub.id}/validate`)}>
-                    Activer 30 jours
+                    Activer {sub.days || (sub.plan === 'week' ? 7 : 30)} jours
                   </button>{' '}
                   <button className="btn btn-ghost btn-sm" onClick={() => act(`/api/admin/subscriptions/${sub.id}/reject`)}>
+                    Refuser
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 style={{ marginTop: 32 }}>Packs de chapitres en attente ({pendingPacks.length})</h2>
+      <p className="hint">
+        Un pack validé ajoute des crédits au compte du lecteur : il ouvre ensuite les chapitres qu’il veut,
+        sans nouveau transfert.
+      </p>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Lecteur</th>
+              <th>Crédits</th>
+              <th>Montant</th>
+              <th>Référence</th>
+              <th>Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pendingPacks.length === 0 && (
+              <tr>
+                <td colSpan={6} className="muted">
+                  Aucun pack en attente.
+                </td>
+              </tr>
+            )}
+            {pendingPacks.map((pack) => (
+              <tr key={pack.id}>
+                <td>
+                  {pack.name || pack.email}
+                  <br />
+                  <span className="hint">{pack.email}</span>
+                </td>
+                <td>{pack.credits}</td>
+                <td>{pack.amount_xof} FCFA</td>
+                <td>{pack.reference}</td>
+                <td>{formatDate(pack.created_at)}</td>
+                <td>
+                  <button className="btn btn-gold btn-sm" onClick={() => act(`/api/admin/credits/${pack.id}/validate`)}>
+                    Créditer {pack.credits} chapitres
+                  </button>{' '}
+                  <button className="btn btn-ghost btn-sm" onClick={() => act(`/api/admin/credits/${pack.id}/reject`)}>
                     Refuser
                   </button>
                 </td>
@@ -143,18 +208,22 @@ export default function Subs() {
           <thead>
             <tr>
               <th>Lecteur</th>
+              <th>Formule</th>
               <th>Statut</th>
               <th>Période</th>
+              <th>Montant</th>
             </tr>
           </thead>
           <tbody>
             {subscriptions.slice(0, 40).map((sub) => (
               <tr key={`h-${sub.id}`}>
                 <td>{sub.email}</td>
+                <td>{PLAN[sub.plan] || PLAN.monthly}</td>
                 <td>{STATUS[sub.status] || sub.status}</td>
                 <td>
                   {sub.period_start ? `${formatDate(sub.period_start)} → ${formatDate(sub.period_end)}` : '—'}
                 </td>
+                <td>{sub.amount_xof} FCFA</td>
               </tr>
             ))}
           </tbody>

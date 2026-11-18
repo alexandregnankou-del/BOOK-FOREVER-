@@ -46,8 +46,8 @@ export default function Home() {
             </h1>
             <p className="lead">
               Les deux premiers chapitres sont offerts. La suite s’ouvre pour {formatXof(site.priceXof)} par
-              chapitre, avec Wave ou Orange Money. Pas d’abonnement, aucun engagement : vous payez seulement
-              l’histoire que vous lisez.
+              chapitre, avec Wave ou Orange Money — ou par un pass de {site.offers?.pass?.days || 7} jours et un
+              pack de {site.offers?.pack?.credits || 5} chapitres si vous lisez beaucoup. Aucun engagement.
             </p>
             <div className="hero-actions">
               <Link to="/bibliotheque" className="btn">
@@ -137,6 +137,60 @@ export default function Home() {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="wrap">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Les formules</span>
+              <h2>Payez au rythme de votre lecture</h2>
+              <p>
+                Un seul transfert Wave ou Orange Money par formule. Chaque chapitre acheté reste ouvert{' '}
+                {site.accessDays || 30} jours.
+              </p>
+            </div>
+          </div>
+          <div className="offers">
+            <div className="offer">
+              <span className="offer-tag">Finir un roman</span>
+              <strong>{formatXof(site.offers?.pass?.priceXof || 500)}</strong>
+              <span className="hint">
+                Pass {site.offers?.pass?.days || 7} jours — tout le catalogue ouvert
+              </span>
+              <Link to="/compte" className="btn btn-ghost btn-sm">
+                Prendre le pass
+              </Link>
+            </div>
+            <div className="offer offer-best">
+              <span className="offer-tag">Le meilleur prix</span>
+              <strong>{formatXof(site.offers?.pack?.priceXof || 1200)}</strong>
+              <span className="hint">
+                {site.offers?.pack?.credits || 5} chapitres au choix —{' '}
+                {formatXof(
+                  Math.round((site.offers?.pack?.priceXof || 1200) / (site.offers?.pack?.credits || 5)),
+                )}{' '}
+                le chapitre
+              </span>
+              <Link to="/compte" className="btn btn-gold btn-sm">
+                Prendre le pack
+              </Link>
+            </div>
+            <div className="offer">
+              <span className="offer-tag">Grands lecteurs</span>
+              <strong>{formatXof(site.offers?.monthly?.priceXof || 2000)}</strong>
+              <span className="hint">
+                Abonnement {site.offers?.monthly?.days || 30} jours — tout le catalogue
+              </span>
+              <Link to="/compte" className="btn btn-ghost btn-sm">
+                S’abonner
+              </Link>
+            </div>
+          </div>
+          <p className="hint" style={{ marginTop: 14 }}>
+            Les deux premiers chapitres de chaque roman restent offerts, sans compte ni paiement.
+          </p>
         </div>
       </section>
 
