@@ -118,6 +118,26 @@ export default function Layout() {
           </div>
         </div>
       </footer>
+
+      {/* Barre d'onglets mobile : l'application doit se tenir à une main. */}
+      <nav className="tabbar" aria-label="Navigation principale">
+        <NavLink to="/" end className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+          <span className="tab-icon" aria-hidden="true">⌂</span>
+          <span>Accueil</span>
+        </NavLink>
+        <NavLink to="/bibliotheque" className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+          <span className="tab-icon" aria-hidden="true">▤</span>
+          <span>Romans</span>
+        </NavLink>
+        <NavLink to="/auteurs" className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+          <span className="tab-icon" aria-hidden="true">✎</span>
+          <span>Auteurs</span>
+        </NavLink>
+        <NavLink to="/compte" className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+          <span className="tab-icon" aria-hidden="true">◍</span>
+          <span>Mon compte</span>
+        </NavLink>
+      </nav>
     </>
   );
 }

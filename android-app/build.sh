@@ -32,8 +32,8 @@ echo "2/6 link…"
   --java "$OUT/gen" \
   --min-sdk-version 24 \
   --target-sdk-version 34 \
-  --version-code 9 \
-  --version-name 9.0.0 \
+  --version-code 10 \
+  --version-name 10.0.0 \
   --auto-add-overlay
 
 echo "3/6 javac…"
@@ -68,7 +68,7 @@ if [ ! -f "$KS" ]; then
     -dname "CN=ADISEN, OU=BOOK FOREVER, O=ADISEN, L=Abidjan, C=CI" > /dev/null 2>&1
 fi
 "$BT/apksigner" sign --ks "$KS" --ks-pass pass:bookforever \
-  --key-pass pass:bookforever --out "$OUT/book-forever-v9.apk" "$OUT/aligned.apk"
+  --key-pass pass:bookforever --out "$OUT/book-forever-v10.apk" "$OUT/aligned.apk"
 
-"$BT/apksigner" verify --print-certs "$OUT/book-forever-v9.apk" | head -3
-echo "APK prêt : $OUT/book-forever-v9.apk ($(du -h "$OUT/book-forever-v9.apk" | cut -f1))"
+"$BT/apksigner" verify --print-certs "$OUT/book-forever-v10.apk" | head -3
+echo "APK prêt : $OUT/book-forever-v10.apk ($(du -h "$OUT/book-forever-v10.apk" | cut -f1))"
