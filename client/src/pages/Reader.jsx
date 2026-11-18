@@ -223,6 +223,29 @@ export default function Reader() {
   const blocks = useMemo(() => paragraphs(state.data?.chapter?.text), [state.data]);
 
 
+  /* Blocage de la copie : le texte se lit, il ne se recopie pas. */
+  useEffect(() => {
+    const blocage = (event) => event.preventDefault();
+    const touches = (event) => {
+      const key = (event.key || '').toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && ['c', 'x', 'a', 'p', 's', 'u'].includes(key)) {
+        event.preventDefault();
+      }
+    };
+    document.addEventListener('copy', blocage);
+    document.addEventListener('cut', blocage);
+    document.addEventListener('contextmenu', blocage);
+    document.addEventListener('selectstart', blocage);
+    document.addEventListener('keydown', touches);
+    return () => {
+      document.removeEventListener('copy', blocage);
+      document.removeEventListener('cut', blocage);
+      document.removeEventListener('contextmenu', blocage);
+      document.removeEventListener('selectstart', blocage);
+      document.removeEventListener('keydown', touches);
+    };
+  }, []);
+
   /* Musique de fond : jamais imposée, jamais en autoplay forcé. */
   useEffect(() => {
     const audio = audioRef.current;
@@ -518,6 +541,7 @@ export default function Reader() {
             </Link>
           )}
         </div>
+        <p className="reader-protect">Texte protégé · reproduction interdite</p>
       </article>
     </div>
   );

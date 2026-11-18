@@ -57,6 +57,8 @@ export default function Layout() {
                 <Link to="/installer">Installer en 3 touches</Link>
                 <Link to="/compte">Mes achats</Link>
                 <Link to="/contact">Assistance</Link>
+                <Link to="/a-propos">À propos</Link>
+                <Link to="/regles">Règles à respecter</Link>
               </div>
             </div>
             <div>
