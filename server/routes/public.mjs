@@ -119,7 +119,7 @@ publicRoutes.get('/books/:slug', (req, res) => {
       unlocked: Boolean(ch.is_free) || isAdmin || paid.has(ch.id) || subscribed,
     }));
 
-  res.json({ book: bookCard(book), chapters });
+  res.json({ book: bookCard(book), chapters, audience: audienceOf(book, user?.id) });
 });
 
 publicRoutes.get('/books/:slug/chapters/:number', (req, res) => {
