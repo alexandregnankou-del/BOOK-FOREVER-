@@ -39,7 +39,7 @@ public class MainActivity extends Activity {
     private static final String START_URL = "https://book-forever.onrender.com/";
     private static final String HOME_HOST = "book-forever.onrender.com";
     private static final String OFFLINE_PAGE = "file:///android_asset/offline.html";
-    private static final String UA_SUFFIX = " BookForeverApp/12.0";
+    private static final String UA_SUFFIX = " BookForeverApp/13.0";
     private static final String INK = "#14110E";
     private static final String GOLD = "#C9A227";
 
@@ -51,6 +51,7 @@ public class MainActivity extends Activity {
     private LocalServer localServer;
     private String localUrl = null;
     private boolean fellBack = false;
+    private int localPort = 0;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -169,6 +170,7 @@ public class MainActivity extends Activity {
         try {
             localServer = new LocalServer(getAssets());
             int port = localServer.start();
+            localPort = port;
             localUrl = "http://127.0.0.1:" + port + "/";
             webView.loadUrl(localUrl);
             startWatchdog();
@@ -258,6 +260,24 @@ public class MainActivity extends Activity {
     private boolean handleUrl(String url) {
         if (url == null) return false;
         Uri uri = Uri.parse(url);
+
+        // Lecture d'un chapitre : on bascule sur le lecteur natif.
+        String path = uri.getPath() == null ? "" : uri.getPath();
+        if (path.startsWith("/lire/")) {
+            String[] segments = path.split("/");
+            if (segments.length >= 4) {
+                try {
+                    int num = Integer.parseInt(segments[3]);
+                    Intent intent = new Intent(this, ReaderActivity.class);
+                    intent.putExtra("slug", segments[2]);
+                    intent.putExtra("number", num);
+                    intent.putExtra("port", localPort);
+                    startActivity(intent);
+                    return true;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
         String scheme = uri.getScheme() == null ? "" : uri.getScheme();
         if ("http".equals(scheme) || "https".equals(scheme)) {
             String host = uri.getHost() == null ? "" : uri.getHost();
@@ -306,7 +326,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() {
-            return "12.0";
+            return "13.0";
         }
     }
 
@@ -324,6 +344,14 @@ public class MainActivity extends Activity {
             return true;
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String requested = intent.getStringExtra("open_url");
+        if (requested != null) webView.loadUrl(requested);
     }
 
     @Override
