@@ -96,6 +96,28 @@ export default function Home() {
 
       <section className="section">
         <div className="wrap">
+
+          {books.length > 0 && (
+            <div className="catalogue-band">
+              <div className="band-item">
+                <strong>{books.length}</strong>
+                <span>romans</span>
+              </div>
+              <div className="band-item">
+                <strong>{books.reduce((total, book) => total + (book.chaptersTotal || 0), 0)}</strong>
+                <span>chapitres</span>
+              </div>
+              <div className="band-item">
+                <strong>{formatXof(books[0]?.priceXof)}</strong>
+                <span>le chapitre</span>
+              </div>
+              <div className="band-item">
+                <strong>{books[0]?.freeChapters ?? 2}</strong>
+                <span>offerts par roman</span>
+              </div>
+            </div>
+          )}
+
           <div className="section-head">
             <div>
               <span className="eyebrow">Le catalogue</span>

@@ -21,9 +21,9 @@ export default function Download() {
           <div className="dl-icon">▲</div>
           <h2>Android</h2>
           <p className="muted">
-            Fichier <code>book-forever-v19.apk</code> (version 19.0.0, 101 Ko) — Android 7 et plus récent. La mise à jour se fait par-dessus la version 8. Si vous avez encore la 1.0.0 d’origine, désinstallez-la d’abord.
+            Fichier <code>book-forever-v20.apk</code> (version 20.0.0, 101 Ko) — Android 7 et plus récent. La mise à jour se fait par-dessus la version 8. Si vous avez encore la 1.0.0 d’origine, désinstallez-la d’abord.
           </p>
-          <a className="btn btn-gold btn-block" href="/download/book-forever-v19.apk" download>
+          <a className="btn btn-gold btn-block" href="/download/book-forever-v20.apk" download>
             Télécharger l’application
           </a>
           <ol className="steps">
@@ -66,7 +66,7 @@ export default function Download() {
       <section className="card download-card wide">
         <h2>Ce que contient l’application</h2>
         <ul className="checklist">
-          <li>Les trois romans et leurs 36 chapitres, avec les deux premiers offerts par livre.</li>
+          <li>Tout le catalogue, avec les deux premiers chapitres offerts par roman.</li>
           <li>Le lecteur réglé pour le téléphone : taille de texte, thème sombre, reprise de lecture.</li>
           <li>Vos achats et votre progression, conservés d’une session à l’autre.</li>
           <li>Paiement par Wave ou Orange Money, puis déblocage immédiat du chapitre.</li>
@@ -77,7 +77,7 @@ export default function Download() {
         </p>
         <p className="hint" style={{ marginTop: 14 }}>
           Pour héberger le site ailleurs ou l’archiver :{' '}
-          <a href="/download/book-forever-web-1.19.0.zip" download>
+          <a href="/download/book-forever-web-1.20.0.zip" download>
             archive web 1.8.0
           </a>
           .

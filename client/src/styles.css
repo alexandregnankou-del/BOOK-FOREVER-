@@ -1991,3 +1991,78 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   margin: 6px 0 10px;
 }
 .check input { margin-top: 3px; }
+
+/* ---------- v20 : chiffres regroupés, fiche info ---------- */
+.catalogue-band {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  padding: 18px 20px;
+  margin: 0 0 26px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.band-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+.band-item strong {
+  font-family: var(--font-display, 'Cormorant Garamond', serif);
+  font-size: 1.7rem;
+  line-height: 1.1;
+  color: var(--ink, #14110e);
+}
+.band-item span {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted, #7c7264);
+}
+
+.book-info {
+  margin-top: 26px;
+  border-top: 1px solid var(--line);
+  padding-top: 22px;
+}
+.book-info-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.book-info-title {
+  font-family: var(--font-display, 'Cormorant Garamond', serif);
+  font-size: 1.15rem;
+  margin: 8px 0 10px;
+  letter-spacing: 0.02em;
+}
+.book-info-list {
+  margin: 6px 0 0;
+  display: grid;
+  gap: 10px;
+}
+.book-info-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(20, 17, 14, 0.08);
+  padding-bottom: 8px;
+}
+.book-info-list dt {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted, #7c7264);
+}
+.book-info-list dd {
+  margin: 0;
+  font-size: 0.95rem;
+  text-align: right;
+}
+@media (max-width: 720px) {
+  .book-info-grid { grid-template-columns: 1fr; gap: 18px; }
+}

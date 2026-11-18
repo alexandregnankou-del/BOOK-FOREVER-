@@ -104,8 +104,40 @@ export default function BookPage() {
             <span aria-hidden="true">{favorite ? '♥' : '♡'}</span>
             {favorite ? 'Dans mes favoris' : 'Ajouter aux favoris'}
           </button>
-          <p className="synopsis">{book.synopsis}</p>
-          <EmojiBar slug={book.slug} audience={data.audience} />
+          <section className="book-info">
+            <header className="book-info-head">
+              <span className="eyebrow">Informations &amp; résumé</span>
+            </header>
+            <div className="book-info-grid">
+              <div>
+                <h2 className="book-info-title">Le roman</h2>
+                <p className="synopsis">{book.synopsis}</p>
+              </div>
+              <dl className="book-info-list">
+                <div>
+                  <dt>Auteur</dt>
+                  <dd>{book.author}</dd>
+                </div>
+                <div>
+                  <dt>Genre</dt>
+                  <dd>{book.category || 'Roman'}</dd>
+                </div>
+                <div>
+                  <dt>Chapitres</dt>
+                  <dd>{book.chaptersTotal}</dd>
+                </div>
+                <div>
+                  <dt>Offerts</dt>
+                  <dd>{book.freeChapters} premiers</dd>
+                </div>
+                <div>
+                  <dt>Prix</dt>
+                  <dd>{formatXof(book.priceXof)} le chapitre</dd>
+                </div>
+              </dl>
+            </div>
+            <EmojiBar slug={book.slug} audience={data.audience} />
+          </section>
           {first && (
             <div style={{ marginTop: 24 }}>
               <Link to={`/lire/${book.slug}/${first.number}`} className="btn btn-gold">

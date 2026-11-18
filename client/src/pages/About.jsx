@@ -37,9 +37,9 @@ export default function About() {
           <div className="panel">
             <h2>Ce que nous faisons</h2>
             <p>
-              Nous éditons un catalogue court et exigeant — {stats.books || 'trois'} romans,{' '}
-              {stats.chapters || 'trente-six'} chapitres — et nous le vendons au chapitre. Les deux premiers
-              de chaque roman sont offerts : un lecteur doit pouvoir juger une écriture avant de payer.
+              Nous éditons un catalogue court et exigeant, vendu au chapitre. Les deux premiers de chaque
+              roman sont offerts : un lecteur doit pouvoir juger une écriture avant de payer. Les chiffres du
+              catalogue sont à jour sur la page d’accueil.
             </p>
             <p>
               La suite coûte {formatXof(stats.priceXof || site.priceXof)} le chapitre, réglable par Wave ou

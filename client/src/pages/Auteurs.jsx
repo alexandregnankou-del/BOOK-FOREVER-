@@ -37,8 +37,8 @@ export default function Auteurs() {
           <span className="eyebrow">Appel à auteurs</span>
           <h1>Vous écrivez ?<br />Publiez ici.</h1>
           <p className="muted" style={{ maxWidth: 620 }}>
-            {site.siteName} ouvre son catalogue à d’autres plumes. Trois romans, trente-six chapitres, des
-            lecteurs qui paient au chapitre — Wave ou Orange Money. Le prochain, c’est peut-être le vôtre.
+            {site.siteName} ouvre son catalogue à d’autres plumes : des lecteurs qui paient au chapitre, par
+            Wave ou Orange Money. Le prochain roman, c’est peut-être le vôtre.
           </p>
         </div>
 
