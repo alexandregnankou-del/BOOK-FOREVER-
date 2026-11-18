@@ -12,6 +12,13 @@ export default function Layout() {
     window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
   }, [pathname]);
 
+  /* La marge basse (place de la barre d'onglets) n'est appliquée qu'aux pages
+     du site ; le lecteur et la console n'en ont pas. */
+  useEffect(() => {
+    document.body.classList.add('with-tabbar');
+    return () => document.body.classList.remove('with-tabbar');
+  }, []);
+
   return (
     <>
       <header className="site-header">

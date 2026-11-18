@@ -7,7 +7,7 @@
    - Polices, icônes, couvertures, audio : cache d'abord, rafraîchis en arrière-plan.
    - /api/* : jamais de cache, jamais de repli. */
 
-const VERSION = 'bf-v3';
+const VERSION = 'bf-v4';
 const SHELL = `${VERSION}-shell`;
 const STATIC = `${VERSION}-static`;
 
@@ -42,10 +42,10 @@ async function networkFirstShell(request) {
   const cache = await caches.open(SHELL);
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 4000);
+    const timer = setTimeout(() => controller.abort(), 9000);
     const response = await fetch(request, { signal: controller.signal });
     clearTimeout(timer);
-    if (response && response.ok) {
+    if (response && response.ok && response.type === 'basic') {
       cache.put('/', response.clone());
     }
     return response;

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './styles.css';
 import { SessionProvider } from './session.jsx';
 import { SiteProvider } from './site.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 import Layout from './components/Layout.jsx';
 import Home from './pages/Home.jsx';
 import Library from './pages/Library.jsx';
@@ -55,7 +56,9 @@ export default function App({ Router = BrowserRouter }) {
       <Router>
         <SiteProvider>
           <SessionProvider>
-            <AppRoutes />
+            <ErrorBoundary>
+              <AppRoutes />
+            </ErrorBoundary>
           </SessionProvider>
         </SiteProvider>
       </Router>

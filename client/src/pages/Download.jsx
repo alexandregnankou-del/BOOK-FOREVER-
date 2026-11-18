@@ -10,9 +10,9 @@ export default function Download() {
         <span className="eyebrow">Application mobile</span>
         <h1>BOOK FOREVER dans votre poche</h1>
         <p className="muted">
-          Une application légère (100 Ko) qui réunit tout : la bibliothèque, les chapitres offerts,
-          le lecteur, vos achats et votre compte. Aucun magasin d’applications, aucun compte Google
-          nécessaire.
+          Une application légère (1,9 Mo) qui réunit tout : la bibliothèque, les chapitres offerts,
+           le lecteur, vos achats et votre compte. Aucun magasin d’applications, aucun compte Google
+           nécessaire.
         </p>
       </section>
 
@@ -21,9 +21,11 @@ export default function Download() {
           <div className="dl-icon">▲</div>
           <h2>Android</h2>
           <p className="muted">
-            Fichier <code>book-forever-v20.apk</code> (version 20.0.0, 101 Ko) — Android 7 et plus récent. La mise à jour se fait par-dessus la version 8. Si vous avez encore la 1.0.0 d’origine, désinstallez-la d’abord.
+            Fichier <code>book-forever-v22.apk</code> (version 22.0.0, 1,9 Mo) — Android 7 et plus récent.
+            L’installation se fait par-dessus les versions précédentes : vos achats et vos lectures sont
+            conservés. Si vous avez encore la 1.0.0 d’origine, désinstallez-la d’abord.
           </p>
-          <a className="btn btn-gold btn-block" href="/download/book-forever-v20.apk" download>
+          <a className="btn btn-gold btn-block" href="/download/book-forever-v22.apk" download>
             Télécharger l’application
           </a>
           <ol className="steps">
@@ -69,7 +71,8 @@ export default function Download() {
           <li>Tout le catalogue, avec les deux premiers chapitres offerts par roman.</li>
           <li>Le lecteur réglé pour le téléphone : taille de texte, thème sombre, reprise de lecture.</li>
           <li>Vos achats et votre progression, conservés d’une session à l’autre.</li>
-          <li>Paiement par Wave ou Orange Money, puis déblocage immédiat du chapitre.</li>
+          <li>Paiement par Wave ou Orange Money : le chapitre à l’unité, le pass de 7 jours, le pack de 5 chapitres ou l’abonnement au mois.</li>
+          <li>Vos crédits de lecture et votre code de parrainage, visibles dans votre compte.</li>
           <li>La page de contact pour joindre l’éditeur en un geste.</li>
         </ul>
         <p className="hint">
@@ -77,8 +80,8 @@ export default function Download() {
         </p>
         <p className="hint" style={{ marginTop: 14 }}>
           Pour héberger le site ailleurs ou l’archiver :{' '}
-          <a href="/download/book-forever-web-1.20.0.zip" download>
-            archive web 1.8.0
+          <a href="/download/book-forever-web-1.22.0.zip" download>
+            archive web 1.22.0
           </a>
           .
         </p>

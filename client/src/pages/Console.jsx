@@ -67,7 +67,7 @@ export default function Console() {
             {id === 'messages' && badges.messages > 0 && ` (${badges.messages})`}
           </button>
         ))}
-        <div style={{ marginTop: 'auto', paddingTop: 20, fontSize: '0.78rem', opacity: 0.75 }}>
+        <div className="console-foot">
           <div style={{ padding: '0 12px 8px' }}>{user.email}</div>
           <Link to="/" style={{ padding: '8px 12px' }}>
             ← Voir le site

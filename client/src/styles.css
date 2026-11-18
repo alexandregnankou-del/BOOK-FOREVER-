@@ -1834,8 +1834,10 @@ select {
   .tabbar .tab { font-size: 11.5px; }
 }
 
-body { padding-bottom: 84px; }
-@media (min-width: 761px) { body { padding-bottom: 104px; } }
+/* La marge basse n'a de sens que là où la barre d'onglets existe ;
+   ailleurs (lecteur, console) elle laissait une bande claire sous le contenu. */
+body.with-tabbar { padding-bottom: 84px; }
+@media (min-width: 761px) { body.with-tabbar { padding-bottom: 104px; } }
 .site-footer { padding-bottom: 24px; }
 
 /* Respiration : le contenu n'était pas coincé, il était collé. */
@@ -2144,4 +2146,51 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   .offers {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------- Console sur téléphone : le menu passait par-dessus le contenu ---------- */
+.console-foot {
+  margin-top: auto;
+  padding-top: 20px;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+@media (max-width: 900px) {
+  .console {
+    grid-template-columns: 1fr;
+    min-height: 100vh;
+  }
+  .console-nav {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .console-nav .brand {
+    margin: 0 8px 0 0;
+    font-size: 0.86rem;
+    white-space: nowrap;
+  }
+  .console-nav button {
+    width: auto;
+    white-space: nowrap;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+  .console-foot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 0 auto;
+    padding: 0;
+    white-space: nowrap;
+  }
+  .console-foot > div { display: none; }
+  .console-main { padding: 16px 14px 40px; }
 }
