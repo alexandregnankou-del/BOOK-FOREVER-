@@ -112,6 +112,11 @@ Une copie de sauvegarde et son mode d'emploi se trouvent dans `backups/apk-signi
 
 ## Journal des versions
 
+### v9 — 18 novembre 2026
+- Application Android : écran d'ouverture maison, écran hors ligne avec « Réessayer »,
+  sortie par double appui, cookies persistants, téléchargements, partage natif.
+- Version `9.0.0` / `versionCode 9`, signée avec la même clé que la v8 (mise à jour directe).
+
 ### v8 — 17 novembre 2026
 - APK `8.0.0` (versionCode 8) compilé et signé : téléchargement des fichiers géré par Android
   (un WebView n'enregistre rien de lui-même), barre de progression réelle, reprise après veille,

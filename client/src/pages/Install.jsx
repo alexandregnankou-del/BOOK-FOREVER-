@@ -45,7 +45,7 @@ export default function Install() {
     <div className="page">
       <div className="wrap">
         <div className="page-head">
-          <span className="eyebrow">Application · version 8</span>
+          <span className="eyebrow">Application · version 9</span>
           <h1>Installer {site.siteName} sur votre téléphone</h1>
           <p className="muted">
             Une icône sur l’écran d’accueil, ouverture en plein écran, et lecture possible même avec une connexion
@@ -106,7 +106,7 @@ export default function Install() {
           <div className="section-head">
             <div>
               <span className="eyebrow">Nouveautés</span>
-              <h2 style={{ fontSize: '1.5rem' }}>Ce que change la version 8</h2>
+              <h2 style={{ fontSize: '1.5rem' }}>Ce que change la version 9</h2>
             </div>
           </div>
           <ul className="release-list">
