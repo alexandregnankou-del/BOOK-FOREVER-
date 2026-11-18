@@ -1980,3 +1980,14 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   height: 100%;
   background: linear-gradient(90deg, #c9a227, #e3c469);
 }
+
+/* Signature d'auteur */
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 6px 0 10px;
+}
+.check input { margin-top: 3px; }

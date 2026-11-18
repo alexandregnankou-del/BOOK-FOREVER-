@@ -13,7 +13,7 @@ export default function Account() {
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [subscription, setSubscription] = useState(null);
   const [author, setAuthor] = useState(null);
-  const [authorForm, setAuthorForm] = useState({ penName: '', bio: '' });
+  const [authorForm, setAuthorForm] = useState({ penName: '', bio: '', declaration: false });
   const [subBusy, setSubBusy] = useState(false);
   const [audience, setAudience] = useState(null);
 
@@ -151,6 +151,15 @@ export default function Account() {
                     maxLength={1200}
                     placeholder="Quelques lignes sur vous et le roman que vous voulez écrire."
                   />
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={authorForm.declaration}
+                    onChange={(e) => setAuthorForm({ ...authorForm, declaration: e.target.checked })}
+                    required
+                  />
+                  <span>Je certifie que les textes que je publierai sont les miens.</span>
                 </label>
                 <button className="btn btn-ghost btn-sm" type="submit">
                   Demander le statut d’auteur

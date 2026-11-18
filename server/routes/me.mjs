@@ -294,6 +294,9 @@ meRoutes.post('/author', (req, res) => {
   if (bio.length < 40) {
     return res.status(400).json({ error: 'Présentez votre projet en quelques lignes (40 caractères minimum).' });
   }
+  if (req.body?.declaration !== true) {
+    return res.status(400).json({ error: 'Vous devez certifier que les textes que vous publierez sont les vôtres.' });
+  }
   db.prepare("UPDATE users SET pen_name = ?, bio = ?, author_status = 'pending', author_requested_at = CURRENT_TIMESTAMP WHERE id = ?")
     .run(penName, bio, req.user.id);
   res.json({ ok: true, message: 'Demande envoyée. Nous revenons vers vous par e-mail.' });
@@ -327,6 +330,14 @@ meRoutes.post('/drafts', (req, res) => {
   if (!author) return;
   const title = String(req.body?.title || '').trim().slice(0, 120);
   if (title.length < 2) return res.status(400).json({ error: 'Donnez un titre à votre roman.' });
+  const drafts = db
+    .prepare("SELECT COUNT(*) AS total FROM books WHERE owner_id = ? AND status = 'draft'")
+    .get(req.user.id).total;
+  if (drafts >= 2) {
+    return res.status(409).json({
+      error: 'Deux romans en cours maximum. Publiez-en un avant d’en commencer un autre.',
+    });
+  }
   const tagline = String(req.body?.tagline || '').trim().slice(0, 180);
   const synopsis = String(req.body?.synopsis || '').trim().slice(0, 3000);
   const slug = uniqueSlug(title);
