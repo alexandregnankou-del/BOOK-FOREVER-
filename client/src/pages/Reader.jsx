@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, formatXof } from '../api.js';
+import { queueOrder, isNetworkFailure } from '../offline.js';
 import { useSession } from '../session.jsx';
 import { useSite } from '../site.jsx';
 
@@ -172,8 +173,16 @@ export default function Reader() {
       const res = await api.buy({ bookSlug: slug, chapterNumber: Number(number), method });
       setOrder(res);
     } catch (err) {
-      if (err.status === 409) setNotice('Ce chapitre est déjà débloqué. Rechargez la page.');
-      else setNotice(err.message);
+      if (err.status === 409) {
+        setNotice('Ce chapitre est déjà débloqué. Rechargez la page.');
+      } else if (isNetworkFailure(err)) {
+        queueOrder({ bookSlug: slug, chapterNumber: Number(number), method });
+        setNotice(
+          'Hors ligne : votre paiement est enregistré. Il partira dès le retour du réseau.',
+        );
+      } else {
+        setNotice(err.message);
+      }
     } finally {
       setBusy(false);
     }

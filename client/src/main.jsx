@@ -1,8 +1,12 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import { watchConnectivity } from './offline.js';
 
 createRoot(document.getElementById('root')).render(<App />);
+
+/* Achats déclarés hors ligne : rejoués dès que le réseau revient. */
+watchConnectivity();
 
 /* Mise à jour de l'application : on prévient, on ne recharge jamais d'office.
    Recharger de force ferait perdre la position de lecture. */

@@ -87,6 +87,14 @@ export default function Account() {
 
         {tab === 'achats' && (
           <div className="panel">
+            {pendingOrders().length > 0 && (
+              <div className="row-item" style={{ borderColor: 'rgba(201,162,39,.45)' }}>
+                <div className="grow">
+                  <strong>{pendingOrders().length} paiement(s) en attente d’envoi</strong>
+                  <span>Enregistré(s) hors ligne. Envoi automatique dès le retour du réseau.</span>
+                </div>
+              </div>
+            )}
             {purchases.length === 0 ? (
               <p className="empty">Aucun achat pour le moment.</p>
             ) : (
