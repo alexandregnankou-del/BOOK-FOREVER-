@@ -2,7 +2,7 @@ import express from 'express';
 import { hasActiveSubscription, db, getSettings, publicSite } from '../db.mjs';
 import { currentUser } from '../auth.mjs';
 
-const APP_VERSION = '1.20.0';
+const APP_VERSION = '1.21.0';
 
 export const publicRoutes = express.Router();
 
@@ -53,7 +53,9 @@ function bookCard(row) {
 function paidChapterIds(userId, bookId) {
   if (!userId) return new Set();
   const rows = db
-    .prepare("SELECT chapter_id FROM orders WHERE user_id = ? AND book_id = ? AND status = 'paid'")
+    .prepare(`SELECT chapter_id FROM orders
+              WHERE user_id = ? AND book_id = ? AND status = 'paid'
+                AND (expires_at IS NULL OR date(expires_at) >= date('now'))`)
     .all(userId, bookId);
   return new Set(rows.map((r) => r.chapter_id));
 }
@@ -67,7 +69,7 @@ publicRoutes.get('/health', (req, res) => {
   }
   res.status(checks.db ? 200 : 503).json({
     ok: checks.db,
-    release: 'v20',
+    release: 'v21',
     version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
@@ -119,7 +121,14 @@ publicRoutes.get('/books/:slug', (req, res) => {
       unlocked: Boolean(ch.is_free) || isAdmin || paid.has(ch.id) || subscribed,
     }));
 
-  res.json({ book: bookCard(book), chapters, audience: audienceOf(book, user?.id) });
+  const client = String(req.get('x-client') || '').toLowerCase();
+  const readOnly = client === 'ios' || client === 'android';
+  res.json({
+    book: bookCard(book),
+    chapters,
+    audience: audienceOf(book, user?.id),
+    commerce: { purchasesInApp: !readOnly, channel: readOnly ? 'READ_ONLY' : 'WEB_PAYMENT' },
+  });
 });
 
 publicRoutes.get('/books/:slug/chapters/:number', (req, res) => {

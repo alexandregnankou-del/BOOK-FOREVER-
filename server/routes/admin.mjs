@@ -351,7 +351,15 @@ adminRoutes.post('/orders/:id/validate', (req, res) => {
   if (['wave_api', 'orange_api', 'mtn_momo', 'moov', 'cinetpay', 'card'].includes(row.method)) {
     return res.status(400).json({ error: 'Un paiement automatique ne peut pas être validé à la main.' });
   }
-  db.prepare("UPDATE orders SET status = 'paid', validated_at = CURRENT_TIMESTAMP, note = ? WHERE id = ?")
+  db.prepare(`UPDATE orders SET status = 'paid', validated_at = CURRENT_TIMESTAMP,
+              expires_at = date('now', '+30 days'),
+              verification_status = 'verified',
+              channel = COALESCE(NULLIF(channel, ''), 'WEB_PAYMENT'),
+              provider = CASE method
+                WHEN 'wave_link' THEN 'wave' WHEN 'wave_api' THEN 'wave'
+                WHEN 'orange_money_direct' THEN 'orange' WHEN 'orange_api' THEN 'orange'
+                WHEN 'cinetpay' THEN 'cinetpay' WHEN 'card' THEN 'card' ELSE 'manual' END,
+              note = ? WHERE id = ?`)
     .run(String(req.body?.note || 'Validé manuellement après vérification du relevé').slice(0, 300), row.id);
   res.json({ ok: true, order: db.prepare('SELECT * FROM orders WHERE id = ?').get(row.id) });
 });

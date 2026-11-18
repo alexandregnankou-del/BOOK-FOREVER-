@@ -170,6 +170,12 @@ addColumn('users', 'author_requested_at', 'TEXT');
 addColumn('books', 'owner_id', 'INTEGER');
 addColumn('books', 'views', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('chapters', 'views', 'INTEGER NOT NULL DEFAULT 0');
+/* Phase 3 : canal, prestataire, devise, expiration du droit, vérification */
+addColumn('orders', 'channel', "TEXT NOT NULL DEFAULT 'WEB_PAYMENT'");
+addColumn('orders', 'provider', "TEXT NOT NULL DEFAULT 'manual'");
+addColumn('orders', 'currency', "TEXT NOT NULL DEFAULT 'XOF'");
+addColumn('orders', 'expires_at', 'TEXT');
+addColumn('orders', 'verification_status', "TEXT NOT NULL DEFAULT 'manual'");
 
 
 export const DEFAULT_SETTINGS = {

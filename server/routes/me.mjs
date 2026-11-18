@@ -58,7 +58,8 @@ meRoutes.post('/purchases', (req, res) => {
   if (chapter.is_free) return res.status(400).json({ error: 'Ce chapitre est déjà offert.' });
 
   const paid = db
-    .prepare("SELECT id FROM orders WHERE user_id = ? AND chapter_id = ? AND status = 'paid'")
+    .prepare(`SELECT id FROM orders WHERE user_id = ? AND chapter_id = ? AND status = 'paid'
+              AND (expires_at IS NULL OR date(expires_at) >= date('now'))`)
     .get(req.user.id, chapter.id);
   if (paid) return res.status(409).json({ error: 'Ce chapitre est déjà débloqué sur votre compte.' });
 
