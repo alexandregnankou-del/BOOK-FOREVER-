@@ -186,6 +186,13 @@ export const DEFAULT_SETTINGS = {
   waveEnabled: '1',
   orangeEnabled: '1',
   supportHours: 'Lundi – samedi, 8h – 20h',
+  /* Paliers du titre d'auteur (v18) */
+  authorMinViews: '1000',
+  authorMinHearts: '100',
+  authorMinFollowers: '50',
+  authorCertViews: '10000',
+  authorCertHearts: '1000',
+  authorCertFollowers: '500',
 };
 
 export function seedSettings() {

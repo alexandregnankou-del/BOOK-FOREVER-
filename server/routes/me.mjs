@@ -408,11 +408,21 @@ meRoutes.get('/audience', (req, res) => {
     : 0;
 
   const settings = getSettings();
-  const thresholds = {
+  const confirmed = {
     views: Number(settings.authorMinViews || 1000),
-    hearts: Number(settings.authorMinHearts || 500),
-    followers: Number(settings.authorMinFollowers || 100000),
+    hearts: Number(settings.authorMinHearts || 100),
+    followers: Number(settings.authorMinFollowers || 50),
   };
+  const certified = {
+    views: Number(settings.authorCertViews || 10000),
+    hearts: Number(settings.authorCertHearts || 1000),
+    followers: Number(settings.authorCertFollowers || 500),
+  };
+  const meets = (level) => views >= level.views && hearts >= level.hearts && followers >= level.followers;
+  const isConfirmed = meets(confirmed);
+  const isCertified = meets(certified);
+  const next = isCertified ? certified : confirmed;
+  const thresholds = next;
 
   res.json({
     name,
@@ -422,11 +432,14 @@ meRoutes.get('/audience', (req, res) => {
     hearts,
     followers,
     thresholds,
-    certified: views >= thresholds.views && hearts >= thresholds.hearts && followers >= thresholds.followers,
+    confirmed: isConfirmed,
+    certified: isCertified,
+    level: isCertified ? 'certifié' : isConfirmed ? 'confirmé' : 'en cours',
+    nextLevel: isCertified ? null : isConfirmed ? 'certifié' : 'confirmé',
     progress: {
-      views: Math.min(100, Math.round((views / thresholds.views) * 100)),
-      hearts: Math.min(100, Math.round((hearts / thresholds.hearts) * 100)),
-      followers: Math.min(100, Math.round((followers / thresholds.followers) * 100)),
+      views: Math.min(100, Math.round((views / next.views) * 100)),
+      hearts: Math.min(100, Math.round((hearts / next.hearts) * 100)),
+      followers: Math.min(100, Math.round((followers / next.followers) * 100)),
     },
   });
 });

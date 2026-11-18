@@ -87,6 +87,54 @@ export default function Settings() {
               />
             </div>
             <div className="field">
+              <label>Palier « confirmé » — vues minimum</label>
+              <input
+                type="number"
+                value={settings.authorMinViews ?? 1000}
+                onChange={(e) => setSettings({ ...settings, authorMinViews: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Palier « confirmé » — réactions minimum</label>
+              <input
+                type="number"
+                value={settings.authorMinHearts ?? 100}
+                onChange={(e) => setSettings({ ...settings, authorMinHearts: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Palier « confirmé » — abonnés minimum</label>
+              <input
+                type="number"
+                value={settings.authorMinFollowers ?? 50}
+                onChange={(e) => setSettings({ ...settings, authorMinFollowers: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Palier « certifié » — vues minimum</label>
+              <input
+                type="number"
+                value={settings.authorCertViews ?? 10000}
+                onChange={(e) => setSettings({ ...settings, authorCertViews: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Palier « certifié » — réactions minimum</label>
+              <input
+                type="number"
+                value={settings.authorCertHearts ?? 1000}
+                onChange={(e) => setSettings({ ...settings, authorCertHearts: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Palier « certifié » — abonnés minimum</label>
+              <input
+                type="number"
+                value={settings.authorCertFollowers ?? 500}
+                onChange={(e) => setSettings({ ...settings, authorCertFollowers: e.target.value })}
+              />
+            </div>
+            <div className="field">
               <label>Chapitres offerts par défaut</label>
               <input
                 type="number"

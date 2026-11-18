@@ -2,7 +2,7 @@ import express from 'express';
 import { hasActiveSubscription, db, getSettings, publicSite } from '../db.mjs';
 import { currentUser } from '../auth.mjs';
 
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.18.0';
 
 export const publicRoutes = express.Router();
 
@@ -67,7 +67,7 @@ publicRoutes.get('/health', (req, res) => {
   }
   res.status(checks.db ? 200 : 503).json({
     ok: checks.db,
-    release: 'v17',
+    release: 'v18',
     version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },

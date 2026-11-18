@@ -164,12 +164,17 @@ export default function Account() {
           <div className="panel" style={{ marginBottom: 22 }}>
             <div className="sub-status">
               <h2 style={{ margin: 0 }}>Mon audience</h2>
-              {audience.certified ? (
-                <span className="badge-author">Auteur certifié</span>
+              {audience.level !== 'en cours' ? (
+                <span className="badge-author">Auteur {audience.level}</span>
               ) : (
-                <span className="hint">Titre d’auteur certifié : conditions non atteintes</span>
+                <span className="hint">Titre d’auteur : conditions non atteintes</span>
               )}
             </div>
+            {audience.nextLevel && (
+              <p className="hint" style={{ marginTop: 6 }}>
+                Prochain palier : <strong>{audience.nextLevel}</strong>
+              </p>
+            )}
             <div className="audience-grid">
               {[
                 ['Vues', audience.views, audience.thresholds.views, audience.progress.views],
