@@ -39,7 +39,7 @@ public class MainActivity extends Activity {
     private static final String START_URL = "https://book-forever.onrender.com/";
     private static final String HOME_HOST = "book-forever.onrender.com";
     private static final String OFFLINE_PAGE = "file:///android_asset/offline.html";
-    private static final String UA_SUFFIX = " BookForeverApp/10.0";
+    private static final String UA_SUFFIX = " BookForeverApp/11.0";
     private static final String INK = "#14110E";
     private static final String GOLD = "#C9A227";
 
@@ -48,6 +48,9 @@ public class MainActivity extends Activity {
     private View splash;
     private long lastBackPress = 0L;
     private boolean pageReady = false;
+    private LocalServer localServer;
+    private String localUrl = null;
+    private boolean fellBack = false;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -162,7 +165,30 @@ public class MainActivity extends Activity {
             }
         });
 
-        webView.loadUrl(START_URL);
+        /* Interface embarquée : serveur local sur 127.0.0.1, repli réseau si échec. */
+        try {
+            localServer = new LocalServer(getAssets());
+            int port = localServer.start();
+            localUrl = "http://127.0.0.1:" + port + "/";
+            webView.loadUrl(localUrl);
+            startWatchdog();
+        } catch (Exception e) {
+            fellBack = true;
+            webView.loadUrl(START_URL);
+        }
+    }
+
+    /** Si la page locale ne s'affiche pas en 8 s, on bascule sur le site distant. */
+    private void startWatchdog() {
+        webView.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!pageReady && !fellBack) {
+                    fellBack = true;
+                    webView.loadUrl(START_URL);
+                }
+            }
+        }, 8000);
     }
 
     /** Écran d'ouverture : fond encre, monogramme doré, nom de la maison. */
@@ -235,6 +261,7 @@ public class MainActivity extends Activity {
         String scheme = uri.getScheme() == null ? "" : uri.getScheme();
         if ("http".equals(scheme) || "https".equals(scheme)) {
             String host = uri.getHost() == null ? "" : uri.getHost();
+            if (host.equals("127.0.0.1") || host.equals("localhost")) return false;
             if (host.equals(HOME_HOST) || host.endsWith(".onrender.com")) return false;
             startActivity(new Intent(Intent.ACTION_VIEW, uri));
             return true;
@@ -279,7 +306,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() {
-            return "10.0";
+            return "11.0";
         }
     }
 
@@ -316,6 +343,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         CookieManager.getInstance().flush();
+        if (localServer != null) localServer.stop();
         super.onDestroy();
     }
 }

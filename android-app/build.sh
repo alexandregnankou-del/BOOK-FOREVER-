@@ -11,6 +11,23 @@ PLATFORM="$SDK/platforms/android-34/android.jar"
 OUT="$HERE/build"
 APP="$HERE/app/src/main"
 
+# --- interface embarquée : copie du build web dans les ressources ---
+WWW="$HERE/app/src/main/assets/www"
+if [ -d "$HERE/../dist" ]; then
+  rm -rf "$WWW"
+  mkdir -p "$WWW/media/covers"
+  cp "$HERE/../dist/index.html" "$WWW/" 2>/dev/null || true
+  cp "$HERE/../dist/manifest.webmanifest" "$WWW/" 2>/dev/null || true
+  cp "$HERE/../dist/sw.js" "$WWW/" 2>/dev/null || true
+  cp -r "$HERE/../dist/assets" "$WWW/" 2>/dev/null || true
+  cp -r "$HERE/../dist/fonts" "$WWW/" 2>/dev/null || true
+  cp -r "$HERE/../dist/icons" "$WWW/" 2>/dev/null || true
+  cp -r "$HERE/../dist/audio" "$WWW/" 2>/dev/null || true
+  cp -r "$HERE/../dist/media/covers/." "$WWW/media/covers/" 2>/dev/null || true
+  echo "interface embarquée : $(du -sh "$WWW" | cut -f1)"
+fi
+
+
 export PATH="$JAVA_HOME/bin:$PATH"
 
 [ -x "$BT/aapt2" ] || { echo "aapt2 introuvable dans $BT"; exit 1; }
@@ -32,8 +49,8 @@ echo "2/6 link…"
   --java "$OUT/gen" \
   --min-sdk-version 24 \
   --target-sdk-version 34 \
-  --version-code 10 \
-  --version-name 10.0.0 \
+  --version-code 11 \
+  --version-name 11.0.0 \
   --auto-add-overlay
 
 echo "3/6 javac…"
@@ -68,7 +85,7 @@ if [ ! -f "$KS" ]; then
     -dname "CN=ADISEN, OU=BOOK FOREVER, O=ADISEN, L=Abidjan, C=CI" > /dev/null 2>&1
 fi
 "$BT/apksigner" sign --ks "$KS" --ks-pass pass:bookforever \
-  --key-pass pass:bookforever --out "$OUT/book-forever-v10.apk" "$OUT/aligned.apk"
+  --key-pass pass:bookforever --out "$OUT/book-forever-v11.apk" "$OUT/aligned.apk"
 
-"$BT/apksigner" verify --print-certs "$OUT/book-forever-v10.apk" | head -3
-echo "APK prêt : $OUT/book-forever-v10.apk ($(du -h "$OUT/book-forever-v10.apk" | cut -f1))"
+"$BT/apksigner" verify --print-certs "$OUT/book-forever-v11.apk" | head -3
+echo "APK prêt : $OUT/book-forever-v11.apk ($(du -h "$OUT/book-forever-v11.apk" | cut -f1))"
