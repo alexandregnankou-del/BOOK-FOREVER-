@@ -12,6 +12,7 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Account from './pages/Account.jsx';
 import Contact from './pages/Contact.jsx';
+import Auteurs from './pages/Auteurs.jsx';
 import Legal from './pages/Legal.jsx';
 import Install from './pages/Install.jsx';
 import Download from './pages/Download.jsx';
@@ -29,6 +30,7 @@ export function AppRoutes() {
         <Route path="/inscription" element={<Register />} />
         <Route path="/compte" element={<Account />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/auteurs" element={<Auteurs />} />
         <Route path="/conditions" element={<Legal kind="terms" />} />
         <Route path="/confidentialite" element={<Legal kind="privacy" />} />
         <Route path="/installer" element={<Install />} />

@@ -1693,3 +1693,33 @@ select {
   border-color: rgba(201, 162, 39, 0.55);
   background: rgba(201, 162, 39, 0.10);
 }
+
+/* ---------- Appel à auteurs ---------- */
+.auteurs-hero {
+  padding: 40px 0 26px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 26px;
+}
+.auteurs-hero h1 {
+  font-family: var(--font-display, 'Cormorant Garamond', serif);
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  line-height: 1.06;
+  margin: 10px 0 16px;
+}
+.auteurs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+.auteurs-list,
+.auteurs-steps {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+  line-height: 1.55;
+}
+.auteurs-steps li::marker {
+  color: var(--gold, #c9a227);
+  font-weight: 600;
+}

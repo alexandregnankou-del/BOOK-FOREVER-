@@ -27,7 +27,10 @@ export default function Layout() {
             <NavLink to="/bibliotheque" className={({ isActive }) => (isActive ? 'active' : '')}>
               Bibliothèque
             </NavLink>
-            <NavLink to="/telecharger" className={({ isActive }) => (isActive ? 'active' : '')}>
+            <NavLink to="/auteurs" className={({ isActive }) => (isActive ? 'active' : '')}>
+            Auteurs
+          </NavLink>
+          <NavLink to="/telecharger" className={({ isActive }) => (isActive ? 'active' : '')}>
               Application
             </NavLink>
             <NavLink to="/installer" className={({ isActive }) => (isActive ? 'active' : '')}>
