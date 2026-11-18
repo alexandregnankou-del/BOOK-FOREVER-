@@ -77,10 +77,14 @@ test('santé de l’API', async () => {
   assert.equal(json.ok, true);
 });
 
-test('catalogue : 3 romans, tous les chapitres publiés, 2 offerts par roman', async () => {
+test('catalogue : romans publiés, tous les chapitres publiés, 2 offerts par roman', async () => {
   const { status, json } = await anon('/api/books');
   assert.equal(status, 200);
-  assert.equal(json.books.length, 3);
+  assert.equal(json.books.length, 4);
+  assert.ok(
+    json.books.some((book) => book.slug === 'si-je-t-aimais-au-present'),
+    'le roman adapté de la BD doit être publié',
+  );
   for (const book of json.books) {
     assert.equal(book.chaptersFree, 2);
     assert.equal(book.priceXof, 300);

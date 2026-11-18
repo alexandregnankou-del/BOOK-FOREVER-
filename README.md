@@ -113,6 +113,15 @@ Une copie de sauvegarde et son mode d'emploi se trouvent dans `backups/apk-signi
 
 ## Journal des versions
 
+### v22.1 — 19 novembre 2026
+- **Nouveau roman** : *Si je t'aimais au présent*, adaptation de la BD en 10 chapitres
+  (12 700 mots), narration à la première personne par Mike, avec deux chapitres en
+  troisième personne (Sandra, l'homme de la berline). Couverture reprise de la BD.
+- **Contenu modulaire** : le serveur charge désormais tous les `server/seed/*.json`.
+  Un roman peut donc vivre dans son propre fichier sans toucher à `books.json`.
+- **Ajouter un roman en Markdown** : déposer `roman/livre/chNN.md` + `meta.json`, puis
+  `node scripts/build-novel.mjs mon-slug` génère le JSON de contenu.
+
 ### v22 — 19 novembre 2026
 - **Trois formules** en plus du chapitre à l'unité : pass `7 jours` (500 FCFA), pack de
   `5 chapitres` (1 200 FCFA) et abonnement mensuel (2 000 FCFA). Prix et durées réglables en console.

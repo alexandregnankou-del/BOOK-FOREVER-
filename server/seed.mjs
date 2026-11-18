@@ -4,18 +4,34 @@ import config from './config.mjs';
 import { db, seedSettings, countWords } from './db.mjs';
 import { ensureAdmin } from './auth.mjs';
 
-const seedFile = path.join(config.rootDir, 'server', 'seed', 'books.json');
+const seedDir = path.join(config.rootDir, 'server', 'seed');
+
+/** Charge tous les fichiers de contenu : un roman peut vivre dans son propre JSON. */
+function loadSeedBooks() {
+  if (!fs.existsSync(seedDir)) return [];
+  const files = fs.readdirSync(seedDir).filter((name) => name.endsWith('.json')).sort();
+  const books = [];
+  for (const file of files) {
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(seedDir, file), 'utf8'));
+      if (Array.isArray(data.books)) books.push(...data.books);
+    } catch (err) {
+      console.error(`[seed] ${file} ignoré : ${err.message}`);
+    }
+  }
+  return books;
+}
 
 export function seedDatabase({ quiet = false } = {}) {
   seedSettings();
   ensureAdmin();
 
-  if (!fs.existsSync(seedFile)) {
+  const books = loadSeedBooks();
+
+  if (!books.length) {
     if (!quiet) console.warn('[seed] aucun fichier de contenu, base initialisée vide.');
     return { books: 0, chapters: 0 };
   }
-
-  const { books } = JSON.parse(fs.readFileSync(seedFile, 'utf8'));
   const exists = db.prepare('SELECT id FROM books WHERE slug = ?');
   const insertBook = db.prepare(`
     INSERT INTO books (slug, title, author, tagline, synopsis, cover, category_slug, category_name,
