@@ -1,0 +1,63 @@
+name: Compilation de l'APK
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Installer le SDK Android
+        run: |
+          set -e
+          mkdir -p "$HOME/android-sdk"
+          curl -sSL -o /tmp/cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q /tmp/cmdline.zip -d /tmp/cmdline
+          yes | /tmp/cmdline/cmdline-tools/bin/sdkmanager --sdk_root="$HOME/android-sdk" --licenses > /dev/null
+          /tmp/cmdline/cmdline-tools/bin/sdkmanager --sdk_root="$HOME/android-sdk" \
+            "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          echo "SDK prêt"
+
+      - name: Restaurer la clé de signature
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::Secret KEYSTORE_B64 absent — l'APK sera signé avec une clé jetable, non publiable."
+            exit 0
+          fi
+          mkdir -p android-app/keystore
+          echo "$KEYSTORE_B64" | base64 -d > android-app/keystore/book-forever.jks
+
+      - name: Compiler
+        env:
+          ANDROID_HOME: ${{ github.workspace }}/../android-sdk
+        run: |
+          set -e
+          export ANDROID_HOME="$HOME/android-sdk"
+          bash android-app/build.sh
+          ls -la android-app/build/book-forever.apk
+
+      - name: Publier l'artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-forever-apk
+          path: android-app/build/book-forever.apk
+
+      - name: Joindre à la version
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android-app/build/book-forever.apk

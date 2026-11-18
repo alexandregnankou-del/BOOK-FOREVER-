@@ -1,0 +1,52 @@
+name: Sauvegarde quotidienne des ventes
+
+on:
+  schedule:
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connexion et export CSV
+        env:
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          set -e
+          BASE="https://book-forever.onrender.com"
+          if [ -z "$ADMIN_EMAIL" ] || [ -z "$ADMIN_PASSWORD" ]; then
+            echo "::error::Secrets ADMIN_EMAIL / ADMIN_PASSWORD absents."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/login.json -w "%{http_code}" --max-time 60 -c /tmp/cookies.txt \
+            -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' \
+            --data "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}")
+          echo "connexion : $code"
+          [ "$code" = "200" ] || { cat /tmp/login.json; exit 1; }
+
+          mkdir -p backups/ventes
+          jour=$(date -u +%F)
+          curl -sS --max-time 90 -b /tmp/cookies.txt \
+            "$BASE/api/admin/orders/export.csv" -o "backups/ventes/$jour.csv"
+          lines=$(wc -l < "backups/ventes/$jour.csv")
+          echo "lignes exportées : $lines"
+          grep -q 'Référence' "backups/ventes/$jour.csv" || { echo "::error::CSV invalide"; exit 1; }
+
+      - name: Conserver 120 jours
+        run: |
+          ls -1t backups/ventes/*.csv 2>/dev/null | tail -n +121 | xargs -r rm -f
+
+      - name: Enregistrer dans le dépôt
+        run: |
+          git config user.name "Sauvegarde automatique"
+          git config user.email "backup@adisen.local"
+          git add backups/ventes
+          git diff --cached --quiet || git commit -m "Sauvegarde des ventes — $(date -u +%F)"
+          git push

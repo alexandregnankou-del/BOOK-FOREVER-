@@ -126,3 +126,18 @@ Une copie de sauvegarde et son mode d'emploi se trouvent dans `backups/apk-signi
 - Recherche dans la bibliothèque (titre, auteur, thème) + filtre par catégorie.
 - Sommaire latéral dans le lecteur, partage natif d'un chapitre.
 - Un fichier absent sous `/download/` renvoie un 404 explicite au lieu de la page HTML.
+
+## Automatisations
+
+Trois workflows sont prêts dans `docs/workflows/` (à copier dans `.github/workflows/` sur GitHub — le jeton de déploiement n'a pas la permission `workflow`) :
+
+| Workflow | Rythme | Rôle |
+|---|---|---|
+| `uptime.yml` | toutes les 20 min | vérifie `/api/health`, l'accueil et l'APK ; échec = alerte GitHub |
+| `backup.yml` | chaque jour à 03:15 UTC | exporte le CSV des ventes dans `backups/ventes/`, conserve 120 jours |
+| `apk.yml` | sur tag `v*` ou manuel | installe JDK 17 + SDK 34, compile et signe l'APK, l'attache à la version |
+
+Secrets déjà enregistrés sur le dépôt : `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `KEYSTORE_B64`.
+
+L'ambiance sonore de lecture est générée par `scripts/make-ambient.py` (synthèse pure, aucun ayant droit) :
+`python3 scripts/make-ambient.py` puis encodage MP3 vers `public/audio/lecture.mp3`.
