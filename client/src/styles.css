@@ -1757,3 +1757,88 @@ select {
   body { padding-bottom: 68px; }
   .site-footer { padding-bottom: 78px; }
 }
+
+/* ==========================================================================
+   v14 — Navigation simplifiée : en-tête réduit au nom, tout en bas.
+   Objectif : moins de bruit en haut, plus d'air pour le contenu.
+   ========================================================================== */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(251, 247, 240, 0.94);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.site-header .bar {
+  justify-content: center;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  min-height: 64px;
+}
+.site-header .brand {
+  gap: 12px;
+}
+.site-header .brand img {
+  width: 36px;
+  height: 36px;
+}
+.nav { display: none !important; }
+
+/* La barre du bas devient la navigation unique, sur tous les écrans. */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(20, 17, 14, 0.97);
+  border-top: 1px solid rgba(201, 162, 39, 0.22);
+  backdrop-filter: blur(12px);
+}
+.tabbar .tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 50px;
+  padding: 4px 2px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: #9a9082;
+  text-decoration: none;
+  transition: color 160ms ease, background 160ms ease;
+}
+.tabbar .tab:active { background: rgba(201, 162, 39, 0.12); }
+.tabbar .tab.active { color: #c9a227; }
+.tabbar .tab-icon { font-size: 18px; line-height: 1; }
+
+@media (min-width: 761px) {
+  .tabbar {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    bottom: 18px;
+    width: min(700px, calc(100% - 40px));
+    border: 1px solid rgba(201, 162, 39, 0.25);
+    border-radius: 20px;
+    box-shadow: 0 16px 44px rgba(20, 17, 14, 0.28);
+  }
+  .tabbar .tab { font-size: 11.5px; }
+}
+
+body { padding-bottom: 84px; }
+@media (min-width: 761px) { body { padding-bottom: 104px; } }
+.site-footer { padding-bottom: 24px; }
+
+/* Respiration : le contenu n'était pas coincé, il était collé. */
+main > .page { padding-top: 8px; padding-bottom: 32px; }
+.section { padding-top: 44px; padding-bottom: 44px; }
+.hero { padding-top: 8px; }

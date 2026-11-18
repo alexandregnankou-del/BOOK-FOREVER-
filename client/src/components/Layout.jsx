@@ -18,50 +18,8 @@ export default function Layout() {
         <div className="wrap bar">
           <Link to="/" className="brand">
             <img src="/icons/icon-192.png" alt="" />
-            <span>
-              {site.siteName}
-              <small>{site.siteTagline}</small>
-            </span>
+            <span>{site.siteName}</span>
           </Link>
-          <nav className="nav">
-            <NavLink to="/bibliotheque" className={({ isActive }) => (isActive ? 'active' : '')}>
-              Bibliothèque
-            </NavLink>
-            <NavLink to="/auteurs" className={({ isActive }) => (isActive ? 'active' : '')}>
-            Auteurs
-          </NavLink>
-          <NavLink to="/telecharger" className={({ isActive }) => (isActive ? 'active' : '')}>
-              Application
-            </NavLink>
-            <NavLink to="/installer" className={({ isActive }) => (isActive ? 'active' : '')}>
-              <span className="hide-sm">Installer</span>
-            </NavLink>
-            <NavLink to="/contact" className={({ isActive }) => (isActive ? 'active' : '')}>
-              <span className="hide-sm">Aide</span>
-            </NavLink>
-            {user ? (
-              <>
-                <NavLink to="/compte" className={({ isActive }) => (isActive ? 'active' : '')}>
-                  Mon compte
-                </NavLink>
-                {user.role === 'admin' && <NavLink to="/console">Console</NavLink>}
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={async () => {
-                    await logout();
-                    window.location.href = '/';
-                  }}
-                >
-                  Quitter
-                </button>
-              </>
-            ) : (
-              <NavLink to="/connexion" className="btn btn-sm btn-gold">
-                Connexion
-              </NavLink>
-            )}
-          </nav>
         </div>
       </header>
 
@@ -133,10 +91,21 @@ export default function Layout() {
           <span className="tab-icon" aria-hidden="true">✎</span>
           <span>Auteurs</span>
         </NavLink>
-        <NavLink to="/compte" className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
-          <span className="tab-icon" aria-hidden="true">◍</span>
-          <span>Mon compte</span>
+        <NavLink to="/telecharger" className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+          <span className="tab-icon" aria-hidden="true">⤓</span>
+          <span>Application</span>
         </NavLink>
+        {user ? (
+          <NavLink to="/compte" className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+            <span className="tab-icon" aria-hidden="true">◍</span>
+            <span>Compte</span>
+          </NavLink>
+        ) : (
+          <NavLink to="/connexion" className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+            <span className="tab-icon" aria-hidden="true">◍</span>
+            <span>Connexion</span>
+          </NavLink>
+        )}
       </nav>
     </>
   );
