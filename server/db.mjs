@@ -105,6 +105,37 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id, status);
 
+
+/* ---------- v17 : audience (vues, réactions, abonnés) ---------- */
+CREATE TABLE IF NOT EXISTS book_reactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL DEFAULT '❤️',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, book_id)
+);
+
+CREATE TABLE IF NOT EXISTS author_follows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  author_name TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, author_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reactions_book ON book_reactions(book_id);
+CREATE INDEX IF NOT EXISTS idx_follows_author ON author_follows(author_name);
+CREATE TABLE IF NOT EXISTS book_views (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  chapter_id INTEGER,
+  user_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_views_book ON book_views(book_id);
+
 CREATE TABLE IF NOT EXISTS favorites (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -137,6 +168,8 @@ addColumn('users', 'bio', "TEXT NOT NULL DEFAULT ''");
 addColumn('users', 'author_status', "TEXT NOT NULL DEFAULT ''");
 addColumn('users', 'author_requested_at', 'TEXT');
 addColumn('books', 'owner_id', 'INTEGER');
+addColumn('books', 'views', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('chapters', 'views', 'INTEGER NOT NULL DEFAULT 0');
 
 
 export const DEFAULT_SETTINGS = {

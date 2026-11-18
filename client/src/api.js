@@ -37,6 +37,13 @@ export const api = {
   progress: () => request('/api/me/progress'),
   saveProgress: (body) => request('/api/me/progress', { method: 'POST', body }),
   overview: () => request('/api/me/overview'),
+  audience: () => request('/api/me/audience'),
+  viewBook: (slug, chapterNumber) =>
+    request(`/api/books/${slug}/view`, { method: 'POST', body: { chapterNumber } }),
+  reactBook: (slug, emoji) => request(`/api/books/${slug}/react`, { method: 'POST', body: { emoji } }),
+  unreaction: (slug) => request(`/api/books/${slug}/react`, { method: 'DELETE' }),
+  followAuthor: (name) => request(`/api/authors/${encodeURIComponent(name)}/follow`, { method: 'POST' }),
+  unfollowAuthor: (name) => request(`/api/authors/${encodeURIComponent(name)}/follow`, { method: 'DELETE' }),
   subscription: () => request('/api/me/subscription'),
   subscribe: (body) => request('/api/me/subscription', { method: 'POST', body }),
   authorStatus: () => request('/api/me/author'),

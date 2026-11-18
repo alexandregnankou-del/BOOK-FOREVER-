@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, formatXof } from '../api.js';
+import EmojiBar from '../components/EmojiBar.jsx';
 import { useSession } from '../session.jsx';
 
 export default function BookPage() {
@@ -48,7 +49,10 @@ export default function BookPage() {
     setError('');
     api
       .book(slug)
-      .then(setData)
+      .then((payload) => {
+        setData(payload);
+        api.viewBook(slug).catch(() => {});
+      })
       .catch((err) => setError(err.message));
   }, [slug]);
 
@@ -101,6 +105,7 @@ export default function BookPage() {
             {favorite ? 'Dans mes favoris' : 'Ajouter aux favoris'}
           </button>
           <p className="synopsis">{book.synopsis}</p>
+          <EmojiBar slug={book.slug} audience={data.audience} />
           {first && (
             <div style={{ marginTop: 24 }}>
               <Link to={`/lire/${book.slug}/${first.number}`} className="btn btn-gold">

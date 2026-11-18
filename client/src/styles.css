@@ -1922,3 +1922,61 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   gap: 12px;
   flex-wrap: wrap;
 }
+
+/* ---------- v17 : réactions et audience ---------- */
+.emoji-bar { margin: 18px 0 6px; }
+.emoji-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.emoji-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+.emoji-chip:hover { transform: translateY(-1px); }
+.emoji-chip.active {
+  border-color: rgba(201, 162, 39, 0.7);
+  background: rgba(201, 162, 39, 0.14);
+}
+.emoji-glyph { font-size: 17px; }
+.emoji-count { font-size: 12px; color: var(--ink-soft, #5a4f3f); }
+.emoji-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--muted, #7c7264);
+}
+.follow-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: #a8841c;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.audience-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+.audience-item { display: flex; flex-direction: column; gap: 4px; }
+.audience-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(20, 17, 14, 0.1);
+  overflow: hidden;
+  margin-top: 6px;
+}
+.audience-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c9a227, #e3c469);
+}

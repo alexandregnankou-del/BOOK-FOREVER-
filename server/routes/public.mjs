@@ -2,7 +2,7 @@ import express from 'express';
 import { hasActiveSubscription, db, getSettings, publicSite } from '../db.mjs';
 import { currentUser } from '../auth.mjs';
 
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.17.0';
 
 export const publicRoutes = express.Router();
 
@@ -67,7 +67,7 @@ publicRoutes.get('/health', (req, res) => {
   }
   res.status(checks.db ? 200 : 503).json({
     ok: checks.db,
-    release: 'v16',
+    release: 'v17',
     version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
@@ -76,11 +76,31 @@ publicRoutes.get('/health', (req, res) => {
 
 publicRoutes.get('/site', (req, res) => res.json(publicSite()));
 
+function audienceOf(book, userId) {
+  const hearts = db.prepare('SELECT COUNT(*) AS total FROM book_reactions WHERE book_id = ?').get(book.id).total;
+  const breakdown = db.prepare('SELECT emoji, COUNT(*) AS total FROM book_reactions WHERE book_id = ? GROUP BY emoji ORDER BY total DESC').all(book.id);
+  const mine = userId
+    ? db.prepare('SELECT emoji FROM book_reactions WHERE book_id = ? AND user_id = ?').get(book.id, userId)
+    : null;
+  const following = userId
+    ? Boolean(db.prepare('SELECT 1 FROM author_follows WHERE user_id = ? AND author_name = ?').get(userId, book.author))
+    : false;
+  return {
+    authorName: book.author,
+    views: book.views || 0,
+    hearts,
+    breakdown,
+    myReaction: mine?.emoji || null,
+    followers: db.prepare('SELECT COUNT(*) AS total FROM author_follows WHERE author_name = ?').get(book.author).total,
+    following,
+  };
+}
+
 publicRoutes.get('/books', (req, res) => {
   const rows = db
     .prepare("SELECT * FROM books WHERE status = 'published' ORDER BY sort_order, id")
     .all();
-  res.json({ books: rows.map(bookCard) });
+  res.json({ books: rows.map((book) => ({ ...bookCard(book), ...audienceOf(book) })) });
 });
 
 publicRoutes.get('/books/:slug', (req, res) => {
@@ -182,3 +202,93 @@ publicRoutes.post('/contact', (req, res) => {
     .run(name.slice(0, 120), email.slice(0, 160), subject.slice(0, 160), body.slice(0, 5000));
   res.status(201).json({ ok: true, id: info.lastInsertRowid, message: 'Message reçu. Nous répondons sous 24 h ouvrées.' });
 });
+
+/* ---------- v17 : audience (vues, cœurs, abonnés) ---------- */
+
+const REACTIONS = ['❤️', '🔥', '😭', '😍', '👏'];
+
+function dayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function bookBySlug(slug) {
+  return db.prepare("SELECT id, slug, author, owner_id FROM books WHERE slug = ? AND status = 'published'").get(slug);
+}
+
+/* Une vue par personne et par jour : on ne gonfle pas les compteurs. */
+publicRoutes.post('/books/:slug/view', (req, res) => {
+  const book = bookBySlug(req.params.slug);
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+  const chapterNumber = Number(req.body?.chapterNumber) || null;
+  const who = req.user ? `u:${req.user.id}` : `ip:${String(req.ip || '').slice(0, 40)}`;
+  const key = `view:${book.id}:${chapterNumber || 0}:${who}:${dayKey()}`;
+  const seen = db.prepare('SELECT 1 FROM book_views WHERE book_id = ? AND chapter_id IS ? AND user_id IS ? AND substr(created_at,1,10) = ?')
+    .get(book.id, chapterNumber, req.user?.id ?? null, dayKey());
+  if (seen) return res.json({ ok: true, counted: false });
+
+  let chapterId = null;
+  if (chapterNumber) {
+    const chapter = db.prepare('SELECT id FROM chapters WHERE book_id = ? AND number = ?').get(book.id, chapterNumber);
+    chapterId = chapter ? chapter.id : null;
+    if (chapterId) db.prepare('UPDATE chapters SET views = views + 1 WHERE id = ?').run(chapterId);
+  }
+  db.prepare('UPDATE books SET views = views + 1 WHERE id = ?').run(book.id);
+  db.prepare('INSERT INTO book_views (book_id, chapter_id, user_id) VALUES (?, ?, ?)')
+    .run(book.id, chapterId, req.user?.id || null);
+  res.json({ ok: true, counted: true, views: db.prepare('SELECT views FROM books WHERE id = ?').get(book.id).views });
+});
+
+/* Réactions : une par lecteur et par roman, modifiable. */
+publicRoutes.post('/books/:slug/react', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ error: 'Connectez-vous pour réagir.' });
+  const book = bookBySlug(req.params.slug);
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+  const emoji = String(req.body?.emoji || '❤️');
+  if (!REACTIONS.includes(emoji)) return res.status(400).json({ error: 'Réaction inconnue.' });
+  db.prepare(`INSERT INTO book_reactions (user_id, book_id, emoji) VALUES (?, ?, ?)
+              ON CONFLICT(user_id, book_id) DO UPDATE SET emoji = excluded.emoji`)
+    .run(user.id, book.id, emoji);
+  res.json({ ok: true, ...reactionSummary(book.id, user.id) });
+});
+
+publicRoutes.delete('/books/:slug/react', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ error: 'Connectez-vous pour réagir.' });
+  const book = bookBySlug(req.params.slug);
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+  db.prepare('DELETE FROM book_reactions WHERE user_id = ? AND book_id = ?').run(user.id, book.id);
+  res.json({ ok: true, ...reactionSummary(book.id, user.id) });
+});
+
+function reactionSummary(bookId, userId) {
+  const counts = db.prepare('SELECT emoji, COUNT(*) AS total FROM book_reactions WHERE book_id = ? GROUP BY emoji')
+    .all(bookId);
+  const total = counts.reduce((sum, row) => sum + row.total, 0);
+  const mine = userId
+    ? db.prepare('SELECT emoji FROM book_reactions WHERE book_id = ? AND user_id = ?').get(bookId, userId)
+    : null;
+  return { reactions: counts, totalReactions: total, myReaction: mine?.emoji || null };
+}
+
+/* Suivre un auteur. */
+publicRoutes.post('/authors/:name/follow', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ error: 'Connectez-vous pour suivre un auteur.' });
+  const name = String(req.params.name || '').trim().slice(0, 120);
+  if (!name) return res.status(400).json({ error: 'Auteur inconnu.' });
+  db.prepare('INSERT OR IGNORE INTO author_follows (user_id, author_name) VALUES (?, ?)').run(user.id, name);
+  res.json({ ok: true, followers: followersOf(name), following: true });
+});
+
+publicRoutes.delete('/authors/:name/follow', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ error: 'Connectez-vous pour suivre un auteur.' });
+  const name = String(req.params.name || '').trim().slice(0, 120);
+  db.prepare('DELETE FROM author_follows WHERE user_id = ? AND author_name = ?').run(user.id, name);
+  res.json({ ok: true, followers: followersOf(name), following: false });
+});
+
+function followersOf(name) {
+  return db.prepare('SELECT COUNT(*) AS total FROM author_follows WHERE author_name = ?').get(name).total;
+}

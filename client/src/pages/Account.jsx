@@ -15,6 +15,7 @@ export default function Account() {
   const [author, setAuthor] = useState(null);
   const [authorForm, setAuthorForm] = useState({ penName: '', bio: '' });
   const [subBusy, setSubBusy] = useState(false);
+  const [audience, setAudience] = useState(null);
 
   useEffect(() => {
     if (ready && !user) navigate('/connexion?next=/compte');
@@ -26,6 +27,7 @@ export default function Account() {
     api.progress().then(({ reading: list }) => setReading(list)).catch(() => {});
     api.subscription().then(setSubscription).catch(() => {});
     api.authorStatus().then(setAuthor).catch(() => {});
+    api.audience().then(setAudience).catch(() => {});
   }, [user]);
 
   if (!ready || !user) return <p className="empty">Chargement…</p>;
@@ -63,6 +65,7 @@ export default function Account() {
       const res = await api.applyAuthor(authorForm);
       setFeedback({ type: 'ok', message: res.message });
       api.authorStatus().then(setAuthor).catch(() => {});
+    api.audience().then(setAudience).catch(() => {});
     } catch (err) {
       setFeedback({ type: 'error', message: err.message });
     }
@@ -156,6 +159,35 @@ export default function Account() {
             )}
           </div>
         </div>
+
+        {audience && (
+          <div className="panel" style={{ marginBottom: 22 }}>
+            <div className="sub-status">
+              <h2 style={{ margin: 0 }}>Mon audience</h2>
+              {audience.certified ? (
+                <span className="badge-author">Auteur certifié</span>
+              ) : (
+                <span className="hint">Titre d’auteur certifié : conditions non atteintes</span>
+              )}
+            </div>
+            <div className="audience-grid">
+              {[
+                ['Vues', audience.views, audience.thresholds.views, audience.progress.views],
+                ['Réactions', audience.hearts, audience.thresholds.hearts, audience.progress.hearts],
+                ['Abonnés', audience.followers, audience.thresholds.followers, audience.progress.followers],
+              ].map(([label, value, target, percent]) => (
+                <div key={label} className="audience-item">
+                  <span className="hint">{label}</span>
+                  <strong>{value.toLocaleString('fr-FR')}</strong>
+                  <span className="hint">sur {target.toLocaleString('fr-FR')}</span>
+                  <div className="audience-track">
+                    <div className="audience-fill" style={{ width: `${percent}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="tabs">
           <button type="button" className={tab === 'lectures' ? 'active' : ''} onClick={() => setTab('lectures')}>

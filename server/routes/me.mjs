@@ -388,3 +388,45 @@ meRoutes.post('/drafts/:slug/chapters', (req, res) => {
   db.prepare('UPDATE books SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(book.id);
   res.json({ ok: true, words });
 });
+
+/* ---------- v17 : audience de l'auteur et conditions du titre ---------- */
+
+meRoutes.get('/audience', (req, res) => {
+  const me = db.prepare('SELECT name, pen_name, author_status FROM users WHERE id = ?').get(req.user.id);
+  const name = me?.pen_name || me?.name || '';
+
+  const books = db
+    .prepare("SELECT id, title, views FROM books WHERE owner_id = ? OR (owner_id IS NULL AND author = ?)")
+    .all(req.user.id, name);
+  const ids = books.map((book) => book.id);
+  const views = books.reduce((total, book) => total + (book.views || 0), 0);
+  const hearts = ids.length
+    ? db.prepare(`SELECT COUNT(*) AS total FROM book_reactions WHERE book_id IN (${ids.map(() => '?').join(',')})`).get(...ids).total
+    : 0;
+  const followers = name
+    ? db.prepare('SELECT COUNT(*) AS total FROM author_follows WHERE author_name = ?').get(name).total
+    : 0;
+
+  const settings = getSettings();
+  const thresholds = {
+    views: Number(settings.authorMinViews || 1000),
+    hearts: Number(settings.authorMinHearts || 500),
+    followers: Number(settings.authorMinFollowers || 100000),
+  };
+
+  res.json({
+    name,
+    status: me?.author_status || '',
+    books: books.length,
+    views,
+    hearts,
+    followers,
+    thresholds,
+    certified: views >= thresholds.views && hearts >= thresholds.hearts && followers >= thresholds.followers,
+    progress: {
+      views: Math.min(100, Math.round((views / thresholds.views) * 100)),
+      hearts: Math.min(100, Math.round((hearts / thresholds.hearts) * 100)),
+      followers: Math.min(100, Math.round((followers / thresholds.followers) * 100)),
+    },
+  });
+});
