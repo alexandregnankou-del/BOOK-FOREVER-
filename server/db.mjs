@@ -136,6 +136,12 @@ CREATE TABLE IF NOT EXISTS book_views (
 
 CREATE INDEX IF NOT EXISTS idx_views_book ON book_views(book_id);
 
+CREATE TABLE IF NOT EXISTS boots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  data_dir TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS favorites (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -270,4 +276,23 @@ export function hasActiveSubscription(userId) {
   const end = row.period_end ? String(row.period_end).slice(0, 10) : null;
   if (!end) return true;
   return end >= new Date().toISOString().slice(0, 10);
+}
+
+/** Trace chaque démarrage : preuve que le disque persiste d'un déploiement à l'autre. */
+export function recordBoot(dataDir) {
+  try {
+    db.prepare('INSERT INTO boots (data_dir) VALUES (?)').run(String(dataDir || ''));
+  } catch {
+    /* la table peut manquer sur une base très ancienne */
+  }
+}
+
+export function bootStats() {
+  try {
+    const total = db.prepare('SELECT COUNT(*) AS total FROM boots').get().total;
+    const first = db.prepare('SELECT started_at FROM boots ORDER BY id LIMIT 1').get();
+    return { boots: total, firstBoot: first?.started_at || null };
+  } catch {
+    return { boots: 0, firstBoot: null };
+  }
 }

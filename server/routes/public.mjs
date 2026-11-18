@@ -1,6 +1,8 @@
 import express from 'express';
 import { hasActiveSubscription, db, getSettings, publicSite } from '../db.mjs';
 import { currentUser } from '../auth.mjs';
+import { config } from '../config.mjs';
+import { bootStats } from '../db.mjs';
 
 const APP_VERSION = '1.21.0';
 
@@ -73,6 +75,11 @@ publicRoutes.get('/health', (req, res) => {
     version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
+    storage: {
+      dir: config.dataDir,
+      persistent: /\/var\/data|\/data/.test(config.dataDir),
+      ...bootStats(),
+    },
   });
 });
 

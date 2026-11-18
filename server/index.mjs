@@ -3,7 +3,7 @@ import cookieParser from 'cookie-parser';
 import fs from 'node:fs';
 import path from 'node:path';
 import config from './config.mjs';
-import { db, publicSite } from './db.mjs';
+import { recordBoot, db, publicSite } from './db.mjs';
 import { seedDatabase } from './seed.mjs';
 import { publicRoutes } from './routes/public.mjs';
 import { authRoutes } from './routes/auth.mjs';
@@ -126,6 +126,8 @@ app.use((err, req, res, next) => {
 });
 
 process.on('unhandledRejection', (err) => console.error('[unhandledRejection]', err));
+
+recordBoot(config.dataDir);
 
 const server = app.listen(config.port, () => {
   const stats = db
