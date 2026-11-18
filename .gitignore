@@ -11,3 +11,6 @@ backups/
 # sorties de build Android
 android-app/build/
 android-app/keystore/
+
+# interface web embarquée, régénérée à chaque compilation
+android-app/app/src/main/assets/www/
