@@ -23,9 +23,10 @@ function readPrefs() {
     return {
       size: Math.min(1.4, Math.max(0.9, Number(raw.size) || 1)),
       theme: THEMES.includes(raw.theme) ? raw.theme : 'sepia',
+      music: Boolean(raw.music),
     };
   } catch {
-    return { size: 1, theme: 'sepia' };
+    return { size: 1, theme: 'sepia', music: false };
   }
 }
 
@@ -68,6 +69,7 @@ export default function Reader() {
   const [tocOpen, setTocOpen] = useState(false);
   const [tocItems, setTocItems] = useState([]);
   const [tocLoading, setTocLoading] = useState(false);
+  const audioRef = useRef(null);
   const [shareNote, setShareNote] = useState('');
   const saved = useRef(0);
   const scrollTimer = useRef(0);
@@ -211,6 +213,50 @@ export default function Reader() {
 
   const blocks = useMemo(() => paragraphs(state.data?.chapter?.text), [state.data]);
 
+
+  /* Musique de fond : jamais imposée, jamais en autoplay forcé. */
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return undefined;
+    let ramp = null;
+    const fadeTo = (target) => {
+      if (ramp) clearInterval(ramp);
+      ramp = setInterval(() => {
+        const next = audio.volume + (target > audio.volume ? 0.03 : -0.05);
+        audio.volume = Math.max(0, Math.min(target, next));
+        if (Math.abs(audio.volume - target) < 0.02) {
+          audio.volume = target;
+          clearInterval(ramp);
+        }
+      }, 60);
+    };
+    const start = () => {
+      audio.volume = 0;
+      const attempt = audio.play();
+      if (attempt && attempt.then) attempt.then(() => fadeTo(0.32)).catch(() => {});
+    };
+    if (prefs.music) {
+      start();
+      const onGesture = () => {
+        if (audio.paused) start();
+      };
+      document.addEventListener('pointerdown', onGesture, { once: true });
+      window.addEventListener('keydown', onGesture, { once: true });
+    } else {
+      fadeTo(0);
+      audio.pause();
+    }
+    const onVisibility = () => {
+      if (document.hidden) audio.pause();
+      else if (prefs.music) start();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (ramp) clearInterval(ramp);
+    };
+  }, [prefs.music]);
+
   if (state.loading) {
     return (
       <div className="reader">
@@ -338,6 +384,7 @@ export default function Reader() {
 
   return (
     <div className="reader" data-theme={prefs.theme} style={{ '--reader-size': `${prefs.size}rem` }}>
+      <audio ref={audioRef} src="/audio/lecture.mp3" loop preload="none" />
       <div className="reader-bar">
         <div className="wrap bar">
           <Link to={`/roman/${book.slug}`} className="btn btn-ghost btn-sm" aria-label="Retour au roman">
@@ -352,6 +399,16 @@ export default function Reader() {
             </button>
             <button type="button" className="tool" onClick={shareChapter} aria-label="Partager" title="Partager">
               ↗
+            </button>
+            <button
+              type="button"
+              className={`tool${prefs.music ? ' on' : ''}`}
+              onClick={() => setPrefs((p) => ({ ...p, music: !p.music }))}
+              aria-label="Musique de fond"
+              aria-pressed={prefs.music}
+              title={prefs.music ? 'Couper la musique' : 'Musique de fond'}
+            >
+              {prefs.music ? '♫' : '♪'}
             </button>
             <button type="button" className="tool" onClick={() => bumpSize(-0.05)} aria-label="Réduire le texte">
               A−

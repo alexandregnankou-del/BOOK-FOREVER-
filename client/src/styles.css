@@ -1685,3 +1685,11 @@ select {
 .release-list strong {
   color: var(--ink);
 }
+
+/* Musique de fond */
+.reader audio { display: none; }
+.reader-tools .tool.on {
+  color: var(--gold, #c9a227);
+  border-color: rgba(201, 162, 39, 0.55);
+  background: rgba(201, 162, 39, 0.10);
+}
