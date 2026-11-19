@@ -12,7 +12,7 @@ import { currentUser } from '../auth.mjs';
 import { config } from '../config.mjs';
 import { bootStats } from '../db.mjs';
 
-const APP_VERSION = '1.50.0';
+const APP_VERSION = '1.50.3';
 
 export const publicRoutes = express.Router();
 
@@ -82,7 +82,7 @@ publicRoutes.get('/health', (req, res) => {
   }
   res.status(checks.db ? 200 : 503).json({
     ok: checks.db,
-    release: 'v50',
+    release: 'v50.3',
     version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
