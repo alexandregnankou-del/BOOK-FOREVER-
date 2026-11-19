@@ -34,19 +34,41 @@ async function waitForServer() {
   return false;
 }
 
-const ROUTES = ['/', '/bibliotheque', '/auteurs', '/a-propos', '/telecharger', '/compte', '/connexion', '/inscription'];
+const ROUTES = [
+  '/', '/bibliotheque', '/auteurs', '/a-propos', '/telecharger', '/compte',
+  '/connexion', '/inscription', '/contact', '/regles', '/ecrire', '/conditions',
+  '/confidentialite', '/installer',
+];
 
 const problems = [];
 
 try {
   if (!(await waitForServer())) throw new Error('serveur non démarré');
 
+  /* Une fiche + un chapitre pour chaque roman : c'est là que les objets
+     (catégorie, auteur) se glissent dans le rendu React. */
+  try {
+    const list = await (await fetch(`${base}/api/books`)).json();
+    for (const b of list.books || []) {
+      ROUTES.push(`/roman/${b.slug}`);
+      ROUTES.push(`/lire/${b.slug}/1`);
+      /* Chapitre verrouillé : c'est le chemin du paywall, à vérifier aussi. */
+      ROUTES.push(`/lire/${b.slug}/12`);
+    }
+  } catch (err) {
+    problems.push(`liste des romans: ${err.message}`);
+  }
+
   const browser = await chromium.launch({ args: ['--no-sandbox'] });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
   const page = await context.newPage();
 
   page.on('console', (msg) => {
-    if (msg.type() === 'error') problems.push(`console: ${msg.text().slice(0, 200)}`);
+    const text = msg.text();
+    /* 402/404 volontaires (chapitre verrouillé ou inexistant) : bruit réseau. */
+    if (msg.type() === 'error' && !/Failed to load resource/.test(text)) {
+      problems.push(`console: ${text.slice(0, 200)}`);
+    }
   });
   page.on('pageerror', (err) => problems.push(`exception: ${String(err.message).slice(0, 200)}`));
   page.on('requestfailed', (req) => problems.push(`requête échouée: ${req.url()} (${req.failure()?.errorText})`));

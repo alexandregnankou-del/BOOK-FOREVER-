@@ -120,7 +120,7 @@ export default function BookPage() {
                 </div>
                 <div>
                   <dt>Genre</dt>
-                  <dd>{book.category || 'Roman'}</dd>
+                  <dd>{book.category?.name || 'Roman'}</dd>
                 </div>
                 <div>
                   <dt>Chapitres</dt>
