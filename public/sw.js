@@ -7,7 +7,7 @@
    - Polices, icônes, couvertures, audio : cache d'abord, rafraîchis en arrière-plan.
    - /api/* : jamais de cache, jamais de repli. */
 
-const VERSION = 'bf-v4';
+const VERSION = 'bf-v5';
 const SHELL = `${VERSION}-shell`;
 const STATIC = `${VERSION}-static`;
 
