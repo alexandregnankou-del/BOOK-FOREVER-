@@ -436,7 +436,7 @@ adminRoutes.post('/covers', (req, res) => {
   if (buffer.length > 3 * 1024 * 1024) return res.status(413).json({ error: 'Image trop lourde (3 Mo maximum).' });
   const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
   const name = `${slugify(req.body?.name || 'couverture')}-${Date.now().toString(36)}.${ext}`;
-  const dir = path.join(config.publicDir, 'media', 'covers');
+  const dir = path.join(config.uploadsDir, 'covers');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, name), buffer);
   res.status(201).json({ url: `/media/covers/${name}` });

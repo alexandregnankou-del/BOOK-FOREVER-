@@ -88,6 +88,7 @@ publicRoutes.get('/health', (req, res) => {
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
     storage: {
       dir: config.dataDir,
+      uploads: config.uploadsDir,
       persistent: /\/var\/data|\/data/.test(config.dataDir),
       ...bootStats(),
     },

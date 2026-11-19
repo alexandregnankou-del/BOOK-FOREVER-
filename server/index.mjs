@@ -35,6 +35,9 @@ app.get('/download/:file', (req, res, next) => {
   res.sendFile(target);
 });
 
+/* Couvertures ajoutées depuis la console : stockées avec la base (disque persistant). */
+app.use('/media/covers', express.static(path.join(config.uploadsDir, 'covers'), { maxAge: '30d' }));
+
 /* Fichiers statiques : médias, polices, icônes, service worker. */
 app.use(
   express.static(config.publicDir, {

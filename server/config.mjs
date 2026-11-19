@@ -28,9 +28,15 @@ function resolveDataDir() {
 
 const dataDir = resolveDataDir();
 
+/** Couvertures ajoutées depuis la console : elles doivent vivre avec la base,
+ *  sinon un redéploiement les efface même si le disque est monté. */
+const uploadsDir = path.join(dataDir, 'uploads');
+fs.mkdirSync(path.join(uploadsDir, 'covers'), { recursive: true });
+
 export const config = {
   rootDir,
   dataDir,
+  uploadsDir,
   dbFile: path.join(dataDir, 'book-forever.db'),
   publicDir: path.join(rootDir, 'public'),
   distDir: path.join(rootDir, 'dist'),
