@@ -45,7 +45,7 @@ export default function Install() {
     <div className="page">
       <div className="wrap">
         <div className="page-head">
-          <span className="eyebrow">Application · version 50.2</span>
+          <span className="eyebrow">Application · version 51</span>
           <h1>Installer {site.siteName} sur votre téléphone</h1>
           <p className="muted">
             Une icône sur l’écran d’accueil, ouverture en plein écran, et lecture possible même avec une connexion
@@ -106,10 +106,18 @@ export default function Install() {
           <div className="section-head">
             <div>
               <span className="eyebrow">Nouveautés</span>
-              <h2 style={{ fontSize: '1.5rem' }}>Ce que change la version 50.2</h2>
+              <h2 style={{ fontSize: '1.5rem' }}>Ce que change la version 51</h2>
             </div>
           </div>
           <ul className="release-list">
+            <li>
+              <strong>Fiche roman réparée</strong> — l’écran « Cette page n’a pas pu s’afficher » ne revient plus
+              quand on ouvre un roman.
+            </li>
+            <li>
+              <strong>Mise à jour automatique</strong> — l’ancienne version en cache est effacée au premier
+              lancement, sans rien vider à la main.
+            </li>
             <li>
               <strong>Reprendre la lecture</strong> — la page d’accueil vous ramène au chapitre laissé en cours, à la
               bonne hauteur de page.

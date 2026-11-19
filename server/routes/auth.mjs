@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { db, registerReferral } from '../db.mjs';
 import { createUser, findByEmail, publicUser, setSession, clearSession, currentUser, hashPassword } from '../auth.mjs';
+import { rateLimiter } from '../ratelimit.mjs';
 
 export const authRoutes = express.Router();
 
@@ -41,7 +42,10 @@ function noteLoginFailure(key) {
   if (loginFailures.size > 5000) loginFailures.clear();
 }
 
-authRoutes.post('/register', (req, res) => {
+/* Création de comptes : 8 par heure et par adresse, pour éviter le spam. */
+const registerLimiter = rateLimiter({ name: 'register', windowMs: 60 * 60 * 1000, max: 8 });
+
+authRoutes.post('/register', registerLimiter, (req, res) => {
   const email = String(req.body?.email || '').trim();
   const password = String(req.body?.password || '');
   const name = String(req.body?.name || '').trim();

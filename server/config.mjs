@@ -33,6 +33,23 @@ const dataDir = resolveDataDir();
 const uploadsDir = path.join(dataDir, 'uploads');
 fs.mkdirSync(path.join(uploadsDir, 'covers'), { recursive: true });
 
+/* Version affichée par /api/health et par le pied de page : un seul endroit à
+   changer pour éviter les libellés contradictoires (l'ancienne page /installer
+   annonçait encore « version 20 »). */
+export const APP_VERSION = '1.51.0';
+export const APP_RELEASE = 'v51';
+
+/* En production, on refuse de démarrer avec les valeurs de secours : un secret
+   JWT par défaut permettrait de forger un jeton administrateur. */
+if (process.env.NODE_ENV === 'production') {
+  const missing = [];
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) missing.push('JWT_SECRET');
+  if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 10) missing.push('ADMIN_PASSWORD');
+  if (missing.length) {
+    throw new Error(`Variables d'environnement manquantes ou trop faibles : ${missing.join(', ')}`);
+  }
+}
+
 export const config = {
   rootDir,
   dataDir,

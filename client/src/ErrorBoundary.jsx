@@ -25,6 +25,7 @@ export default class ErrorBoundary extends React.Component {
 
     return (
       <div
+        data-bf-boundary="1"
         style={{
           minHeight: '100vh',
           display: 'grid',

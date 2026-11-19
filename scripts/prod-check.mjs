@@ -1,0 +1,34 @@
+import { chromium } from 'playwright';
+const BASE = 'https://book-forever.onrender.com';
+const PASS = process.env.PASS;
+const ROUTES = ['/', '/bibliotheque', '/auteurs', '/a-propos', '/telecharger', '/compte'];
+const problems = [];
+const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => problems.push('exception ' + String(e.message).slice(0, 120)));
+page.on('console', (m) => { if (m.type() === 'error') problems.push('console ' + m.text().slice(0, 120)); });
+for (const r of ROUTES) {
+  await page.goto(BASE + r, { waitUntil: 'load', timeout: 90000 });
+  await page.waitForTimeout(900);
+  const t = (await page.locator('body').innerText()).replace(/\s+/g, ' ').trim();
+  const boundary = t.includes("n’a pas pu s’afficher");
+  console.log(`${boundary ? 'ERREUR' : t.length < 20 ? 'VIDE' : 'ok    '} ${r.padEnd(14)} ${t.slice(0, 55)}`);
+  if (boundary || t.length < 20) problems.push(r + ' non rendu');
+}
+await page.goto(BASE + '/connexion', { waitUntil: 'load', timeout: 90000 });
+await page.fill('input[type="email"]', 'alexadisenhouse@gmail.com');
+await page.fill('input[type="password"]', PASS);
+await page.click('button[type="submit"]');
+await page.waitForTimeout(2500);
+await page.goto(BASE + '/console', { waitUntil: 'load', timeout: 90000 });
+await page.waitForTimeout(2000);
+const consoleText = (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 110);
+console.log('console: ' + consoleText);
+await page.screenshot({ path: '/tmp/prod-console.png' });
+await page.goto(BASE + '/telecharger', { waitUntil: 'load', timeout: 90000 });
+await page.waitForTimeout(800);
+const apkHref = await page.locator('a[href*="book-forever-v"]').first().getAttribute('href').catch(() => null);
+console.log('lien APK sur /telecharger: ' + apkHref);
+await browser.close();
+console.log(problems.length ? 'PROBLEMES: ' + [...new Set(problems)].join(' | ') : 'Aucun problème détecté.');

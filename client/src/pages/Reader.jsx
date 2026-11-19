@@ -320,7 +320,7 @@ export default function Reader() {
       <div className="reader">
         <div className="paywall">
           <div className="paywall-card">
-            <h2>{state.error}</h2>
+            <h1>{state.error}</h1>
             <Link to="/bibliotheque" className="btn btn-ghost">
               Retour à la bibliothèque
             </Link>
@@ -353,7 +353,7 @@ export default function Reader() {
         <div className="paywall">
           <div className="paywall-card">
             <span className="eyebrow">Chapitre {chapter.number}</span>
-            <h2>{payload.paywall.title}</h2>
+            <h1>{payload.paywall.title}</h1>
             <p className="muted">
               {chapter.title} — {formatXof(chapter.priceXof)}. Déblocage définitif sur votre compte, à relire
               autant de fois que vous voulez.

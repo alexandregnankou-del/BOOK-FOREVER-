@@ -19,6 +19,7 @@ if [ -d "$HERE/../dist" ]; then
   cp "$HERE/../dist/index.html" "$WWW/" 2>/dev/null || true
   cp "$HERE/../dist/manifest.webmanifest" "$WWW/" 2>/dev/null || true
   cp "$HERE/../dist/sw.js" "$WWW/" 2>/dev/null || true
+  cp "$HERE/../dist/rescue.js" "$WWW/" 2>/dev/null || true
   cp -r "$HERE/../dist/assets" "$WWW/" 2>/dev/null || true
   cp -r "$HERE/../dist/fonts" "$WWW/" 2>/dev/null || true
   cp -r "$HERE/../dist/icons" "$WWW/" 2>/dev/null || true
@@ -49,8 +50,8 @@ echo "2/6 link…"
   --java "$OUT/gen" \
   --min-sdk-version 24 \
   --target-sdk-version 34 \
-  --version-code 53 \
-  --version-name 50.3 \
+  --version-code 54 \
+  --version-name 51 \
   --auto-add-overlay
 
 echo "3/6 javac…"
@@ -85,7 +86,7 @@ if [ ! -f "$KS" ]; then
     -dname "CN=ADISEN, OU=BOOK FOREVER, O=ADISEN, L=Abidjan, C=CI" > /dev/null 2>&1
 fi
 "$BT/apksigner" sign --ks "$KS" --ks-pass pass:bookforever \
-  --key-pass pass:bookforever --out "$OUT/book-forever-v50.3.apk" "$OUT/aligned.apk"
+  --key-pass pass:bookforever --out "$OUT/book-forever-v51.apk" "$OUT/aligned.apk"
 
-"$BT/apksigner" verify --print-certs "$OUT/book-forever-v50.3.apk" | head -3
-echo "APK prêt : $OUT/book-forever-v50.3.apk ($(du -h "$OUT/book-forever-v50.3.apk" | cut -f1))"
+"$BT/apksigner" verify --print-certs "$OUT/book-forever-v51.apk" | head -3
+echo "APK prêt : $OUT/book-forever-v51.apk ($(du -h "$OUT/book-forever-v51.apk" | cut -f1))"

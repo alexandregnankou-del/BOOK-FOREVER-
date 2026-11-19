@@ -2,7 +2,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import fs from 'node:fs';
 import path from 'node:path';
-import config from './config.mjs';
+import config, { APP_VERSION, APP_RELEASE } from './config.mjs';
 import { recordBoot, db, publicSite } from './db.mjs';
 import { seedDatabase } from './seed.mjs';
 import { publicRoutes } from './routes/public.mjs';
@@ -16,6 +16,35 @@ app.set('trust proxy', 1);
 app.use(express.json({ limit: '6mb' }));
 app.use(cookieParser());
 
+/* En-têtes de sécurité. La politique de contenu n'autorise que nos propres
+   scripts : le filet de secours de index.html est donc un fichier externe
+   (/rescue.js) et non un script en ligne. */
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "media-src 'self'",
+      "connect-src 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+    ].join('; '),
+  );
+  if (config.isProd) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
 seedDatabase({ quiet: true });
 
 app.use('/api', publicRoutes);
@@ -23,7 +52,42 @@ app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get('/api', (req, res) => res.json({ name: 'BOOK FOREVER API', version: '1.0.0' }));
+app.get('/api', (req, res) => res.json({ name: 'BOOK FOREVER API', version: APP_VERSION, release: APP_RELEASE }));
+
+/* Nom d'hôte public : PUBLIC_URL si défini, sinon celui de la requête. */
+function originOf(req) {
+  return (process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+}
+
+/* Référencement : sans ces deux fichiers, Google n'explore que la page d'accueil. */
+app.get('/robots.txt', (req, res) => {
+  res
+    .type('text/plain')
+    .send(
+      ['User-agent: *', 'Allow: /', 'Disallow: /console', 'Disallow: /api/', `Sitemap: ${originOf(req)}/sitemap.xml`, ''].join('\n'),
+    );
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const origin = originOf(req);
+  const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const pages = [
+    ['/', '1.0'], ['/bibliotheque', '0.9'], ['/auteurs', '0.7'], ['/a-propos', '0.5'],
+    ['/telecharger', '0.8'], ['/contact', '0.4'], ['/regles', '0.3'],
+    ['/conditions', '0.2'], ['/confidentialite', '0.2'],
+  ];
+  const books = db.prepare("SELECT slug, updated_at FROM books WHERE status = 'published' ORDER BY sort_order, id").all();
+  const urls = [
+    ...pages.map(([p, pr]) => `  <url><loc>${esc(origin + p)}</loc><changefreq>weekly</changefreq><priority>${pr}</priority></url>`),
+    ...books.map(
+      (b) =>
+        `  <url><loc>${esc(`${origin}/roman/${b.slug}`)}</loc><lastmod>${esc(String(b.updated_at || '').slice(0, 10))}</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>`,
+    ),
+  ].join('\n');
+  res
+    .type('application/xml')
+    .send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
+});
 
 /* APK : type MIME Android + téléchargement explicite. */
 app.get('/download/:file', (req, res, next) => {
@@ -100,6 +164,16 @@ function buildMeta(req) {
 const FILE_LIKE = /^\/(download|media|covers|icons|assets|fonts|screenshots)\//i;
 const HAS_EXTENSION = /\/[^/]+\.[a-z0-9]{2,5}$/i;
 
+/* Routes réelles de l'application. Tout le reste doit répondre 404 : sinon
+   Google indexe des adresses inexistantes comme de vraies pages (soft 404). */
+const SPA_PAGES = new Set([
+  '/', '/bibliotheque', '/auteurs', '/a-propos', '/telecharger', '/installer',
+  '/compte', '/connexion', '/inscription', '/contact', '/regles', '/ecrire',
+  '/conditions', '/confidentialite', '/console',
+]);
+const SPA_PATTERNS = [/^\/roman\/[a-z0-9-]+$/i, /^\/lire\/[a-z0-9-]+\/\d+$/i, /^\/console(\/[a-z0-9-]+)*$/i];
+const isAppRoute = (p) => SPA_PAGES.has(p) || SPA_PATTERNS.some((re) => re.test(p));
+
 app.get(/^\/(?!api\/).*/, (req, res, next) => {
   if (['/sw.js', '/manifest.webmanifest'].includes(req.path)) return next();
   if (FILE_LIKE.test(req.path) || HAS_EXTENSION.test(req.path)) {
@@ -112,6 +186,7 @@ app.get(/^\/(?!api\/).*/, (req, res, next) => {
       .send('Le site n’est pas encore compilé. Lancez « npm run build ».');
   }
   res.setHeader('Cache-Control', 'no-store');
+  res.status(isAppRoute(req.path) ? 200 : 404);
   let html = fs.readFileSync(indexHtml, 'utf8');
   if (html.includes('<!--meta-start-->')) {
     const { tags, title } = buildMeta(req);
@@ -124,8 +199,15 @@ app.get(/^\/(?!api\/).*/, (req, res, next) => {
 app.use((req, res) => res.status(404).json({ error: 'Ressource introuvable.' }));
 
 app.use((err, req, res, next) => {
-  console.error('[api]', err);
   if (res.headersSent) return next(err);
+  /* JSON mal formé ou trop volumineux : c'est la faute du client, pas un 500. */
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Données illisibles : le corps de la requête n’est pas un JSON valide.' });
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Envoi trop volumineux.' });
+  }
+  console.error('[api]', err);
   res.status(500).json({ error: 'Erreur interne. L’incident a été journalisé.' });
 });
 

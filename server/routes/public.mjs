@@ -9,10 +9,9 @@ import {
   creditChapterIds,
 } from '../db.mjs';
 import { currentUser } from '../auth.mjs';
-import { config } from '../config.mjs';
+import { config, APP_VERSION, APP_RELEASE } from '../config.mjs';
 import { bootStats } from '../db.mjs';
-
-const APP_VERSION = '1.50.3';
+import { rateLimiter } from '../ratelimit.mjs';
 
 export const publicRoutes = express.Router();
 
@@ -82,7 +81,7 @@ publicRoutes.get('/health', (req, res) => {
   }
   res.status(checks.db ? 200 : 503).json({
     ok: checks.db,
-    release: 'v50.3',
+    release: APP_RELEASE,
     version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
@@ -230,7 +229,10 @@ publicRoutes.get('/books/:slug/chapters/:number', (req, res) => {
   });
 });
 
-publicRoutes.post('/contact', (req, res) => {
+/* Un visiteur peut écrire, mais pas inonder la boîte : 5 messages par quart d'heure. */
+const contactLimiter = rateLimiter({ name: 'contact', windowMs: 15 * 60 * 1000, max: 5 });
+
+publicRoutes.post('/contact', contactLimiter, (req, res) => {
   const name = String(req.body?.name || '').trim();
   const email = String(req.body?.email || '').trim();
   const subject = String(req.body?.subject || '').trim();
@@ -261,10 +263,11 @@ publicRoutes.post('/books/:slug/view', (req, res) => {
   const book = bookBySlug(req.params.slug);
   if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
   const chapterNumber = Number(req.body?.chapterNumber) || null;
-  const who = req.user ? `u:${req.user.id}` : `ip:${String(req.ip || '').slice(0, 40)}`;
-  const key = `view:${book.id}:${chapterNumber || 0}:${who}:${dayKey()}`;
+  /* req.user n'existe pas sur les routes publiques : sans currentUser(), un
+     lecteur connecté était compté comme une simple adresse IP. */
+  const user = currentUser(req);
   const seen = db.prepare('SELECT 1 FROM book_views WHERE book_id = ? AND chapter_id IS ? AND user_id IS ? AND substr(created_at,1,10) = ?')
-    .get(book.id, chapterNumber, req.user?.id ?? null, dayKey());
+    .get(book.id, chapterNumber, user?.id ?? null, dayKey());
   if (seen) return res.json({ ok: true, counted: false });
 
   let chapterId = null;
@@ -275,7 +278,7 @@ publicRoutes.post('/books/:slug/view', (req, res) => {
   }
   db.prepare('UPDATE books SET views = views + 1 WHERE id = ?').run(book.id);
   db.prepare('INSERT INTO book_views (book_id, chapter_id, user_id) VALUES (?, ?, ?)')
-    .run(book.id, chapterId, req.user?.id || null);
+    .run(book.id, chapterId, user?.id || null);
   res.json({ ok: true, counted: true, views: db.prepare('SELECT views FROM books WHERE id = ?').get(book.id).views });
 });
 

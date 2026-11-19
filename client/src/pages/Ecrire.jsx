@@ -78,9 +78,12 @@ export default function Ecrire() {
     return (
       <div className="page">
         <div className="wrap">
-          <p className="panel">
-            L’atelier est réservé aux auteurs connectés. <Link to="/connexion">Se connecter</Link>
-          </p>
+          <div className="panel">
+            <h1>Atelier d’écriture</h1>
+            <p>
+              L’atelier est réservé aux auteurs connectés. <Link to="/connexion">Se connecter</Link>
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -91,7 +94,7 @@ export default function Ecrire() {
       <div className="page">
         <div className="wrap">
           <div className="panel">
-            <h2>Atelier d’écriture</h2>
+            <h1>Atelier d’écriture</h1>
             <p>
               {author.status === 'pending'
                 ? 'Votre candidature est en cours d’examen. Nous vous répondons par e-mail.'
