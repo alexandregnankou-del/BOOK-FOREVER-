@@ -409,3 +409,47 @@ test('un code de parrainage inconnu n’empêche pas l’inscription', async () 
   assert.equal(res.status, 201);
   assert.equal(res.json.referral, null);
 });
+
+test('partage : un premier partage compte, le même jour et même canal non', async () => {
+  const slug = 'light-in-the-dark';
+  const first = await anon('/api/shares', { method: 'POST', body: { bookSlug: slug, channel: 'whatsapp' } });
+  assert.equal(first.status, 200);
+  assert.equal(first.json.counted, true);
+  assert.ok(first.json.shares >= 1);
+
+  const again = await anon('/api/shares', { method: 'POST', body: { bookSlug: slug, channel: 'whatsapp' } });
+  assert.equal(again.json.counted, false, 'un double clic ne doit pas gonfler le compteur');
+
+  const other = await anon('/api/shares', { method: 'POST', body: { bookSlug: slug, channel: 'facebook' } });
+  assert.equal(other.json.counted, true, 'un autre canal reste un nouveau partage');
+
+  const site = await anon('/api/shares', { method: 'POST', body: { channel: 'copie' } });
+  assert.equal(site.status, 200);
+  assert.equal(site.json.path, '/', 'sans roman, le lien vise la page d’accueil');
+});
+
+test('partage : un lecteur connecté diffuse son code de parrainage', async () => {
+  const res = await reader('/api/shares', { method: 'POST', body: { bookSlug: 'light-in-the-dark', channel: 'telegram' } });
+  assert.equal(res.status, 200);
+  assert.ok(res.json.code && res.json.code.length >= 6, 'le lien doit porter le code du lecteur');
+
+  const mine = await reader('/api/shares/mine');
+  assert.ok(mine.json.shares >= 1);
+  assert.equal(mine.json.code, res.json.code);
+});
+
+test('partage : un roman inconnu est refusé', async () => {
+  const res = await anon('/api/shares', { method: 'POST', body: { bookSlug: 'roman-fantome', channel: 'x' } });
+  assert.equal(res.status, 404);
+});
+
+test('console : cœurs et partages par roman', async () => {
+  await admin('/api/auth/login', { method: 'POST', body: { email: 'admin@test.ci', password: 'Adisen2026!' } });
+  const res = await admin('/api/admin/audience');
+  assert.equal(res.status, 200);
+  assert.ok(Array.isArray(res.json.books));
+  assert.ok(res.json.totals.shares >= 2, 'les partages des tests précédents doivent être visibles');
+  const book = res.json.books.find((b) => b.slug === 'light-in-the-dark');
+  assert.ok(book && book.shares >= 2, 'les partages par roman doivent remonter');
+  assert.ok(typeof book.likes === 'number');
+});

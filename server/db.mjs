@@ -137,6 +137,21 @@ CREATE TABLE IF NOT EXISTS book_views (
 
 CREATE INDEX IF NOT EXISTS idx_views_book ON book_views(book_id);
 
+/* Partages : un lien diffusé par un lecteur, avec le canal utilisé.
+   book_id NULL = partage du site entier. */
+CREATE TABLE IF NOT EXISTS shares (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id INTEGER,
+  user_id INTEGER,
+  channel TEXT NOT NULL DEFAULT 'autre',
+  code TEXT NOT NULL DEFAULT '',
+  visitor TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_shares_book ON shares(book_id);
+CREATE INDEX IF NOT EXISTS idx_shares_day ON shares(created_at);
+
 CREATE TABLE IF NOT EXISTS boots (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -386,6 +401,45 @@ export function ensureReferralCode(userId) {
   } while (db.prepare('SELECT 1 FROM users WHERE referral_code = ?').get(code));
   db.prepare('UPDATE users SET referral_code = ? WHERE id = ?').run(code, userId);
   return code;
+}
+
+/** Compteurs de partage : total, détail par canal, et part du jour. */
+export function shareStats(bookId = null) {
+  const where = bookId ? 'WHERE book_id = ?' : '';
+  const args = bookId ? [bookId] : [];
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM shares ${where}`).get(...args).n;
+  const today = db
+    .prepare(`SELECT COUNT(*) AS n FROM shares ${where ? `${where} AND` : 'WHERE'} substr(created_at,1,10) = ?`)
+    .get(...args, new Date().toISOString().slice(0, 10)).n;
+  const channels = db
+    .prepare(`SELECT channel, COUNT(*) AS n FROM shares ${where} GROUP BY channel ORDER BY n DESC`)
+    .all(...args);
+  return { shares: total, sharesToday: today, channels };
+}
+
+/**
+ * Enregistre un partage. Un même visiteur qui reclique sur « Partager » le même
+ * jour pour le même canal ne gonfle pas le compteur : on veut mesurer la
+ * diffusion réelle, pas le nombre de clics.
+ */
+export function recordShare({ bookId = null, userId = null, channel = 'autre', code = '', visitor = '' }) {
+  const day = new Date().toISOString().slice(0, 10);
+  const already = db
+    .prepare(
+      `SELECT 1 FROM shares WHERE book_id IS ? AND visitor = ? AND channel = ?
+         AND substr(created_at,1,10) = ?`,
+    )
+    .get(bookId, visitor, channel, day);
+  if (!already) {
+    db.prepare('INSERT INTO shares (book_id, user_id, channel, code, visitor) VALUES (?, ?, ?, ?, ?)').run(
+      bookId,
+      userId,
+      String(channel || 'autre').slice(0, 20),
+      String(code || '').slice(0, 20),
+      String(visitor || '').slice(0, 60),
+    );
+  }
+  return { counted: !already, ...shareStats(bookId) };
 }
 
 /** Enregistre un filleul et offre un crédit tous les « target » amis invités. */

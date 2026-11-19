@@ -4,15 +4,38 @@ import os from 'node:os';
 
 const rootDir = path.resolve(import.meta.dirname, '..');
 
+/** Disque que Render monte quand on active l'option payante. */
+const RENDER_DISK = '/var/data';
+
+const isTmpPath = (p) => /^\/(tmp|var\/tmp)(\/|$)/.test(p);
+
+/** Un vrai disque monté a un numéro de périphérique différent de son parent.
+ *  Un simple dossier créé à la main ne trompe donc pas la détection. */
+function isRealMount(target) {
+  try {
+    return fs.statSync(target).dev !== fs.statSync(path.dirname(target)).dev;
+  } catch {
+    return false;
+  }
+}
+
 /** Le dossier de données doit être inscriptible : sur certaines plateformes
  *  le dossier de l'application est en lecture seule. On essaie dans l'ordre
- *  DATA_DIR, ./data, puis le dossier temporaire du système. */
+ *  le disque Render, DATA_DIR, ./data, puis le dossier temporaire du système.
+ *
+ *  Le disque monté passe avant un DATA_DIR temporaire : le jour où l'option
+ *  payante est activée, l'application bascule toute seule et n'a plus besoin
+ *  d'être reconfigurée — c'est ce qui évite de croire à une sauvegarde alors
+ *  que les fichiers partent encore dans /tmp. */
 function resolveDataDir() {
-  const candidates = [
-    process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : null,
-    path.join(rootDir, 'data'),
-    path.join(os.tmpdir(), 'book-forever-data'),
-  ].filter(Boolean);
+  const explicit = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : null;
+  const diskReady = fs.existsSync(RENDER_DISK) && isRealMount(RENDER_DISK);
+
+  const candidates = [];
+  if (diskReady) candidates.push(RENDER_DISK);
+  if (explicit && !(diskReady && isTmpPath(explicit))) candidates.push(explicit);
+  candidates.push(path.join(rootDir, 'data'));
+  if (!diskReady) candidates.push(path.join(os.tmpdir(), 'book-forever-data'));
 
   for (const dir of candidates) {
     try {
@@ -28,6 +51,9 @@ function resolveDataDir() {
 
 const dataDir = resolveDataDir();
 
+/** Vrai seulement si les fichiers survivent à un redémarrage. */
+const storagePersistent = isRealMount(dataDir) || !isTmpPath(dataDir);
+
 /** Couvertures ajoutées depuis la console : elles doivent vivre avec la base,
  *  sinon un redéploiement les efface même si le disque est monté. */
 const uploadsDir = path.join(dataDir, 'uploads');
@@ -36,8 +62,8 @@ fs.mkdirSync(path.join(uploadsDir, 'covers'), { recursive: true });
 /* Version affichée par /api/health et par le pied de page : un seul endroit à
    changer pour éviter les libellés contradictoires (l'ancienne page /installer
    annonçait encore « version 20 »). */
-export const APP_VERSION = '1.51.0';
-export const APP_RELEASE = 'v51';
+export const APP_VERSION = '1.51.1';
+export const APP_RELEASE = 'v51.1';
 
 /* En production, on refuse de démarrer avec les valeurs de secours : un secret
    JWT par défaut permettrait de forger un jeton administrateur. */
@@ -54,6 +80,7 @@ export const config = {
   rootDir,
   dataDir,
   uploadsDir,
+  storagePersistent,
   dbFile: path.join(dataDir, 'book-forever.db'),
   publicDir: path.join(rootDir, 'public'),
   distDir: path.join(rootDir, 'dist'),

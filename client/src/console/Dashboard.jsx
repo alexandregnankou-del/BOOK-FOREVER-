@@ -88,6 +88,18 @@ export default function Dashboard({ onNavigate }) {
           <span style={{ textTransform: 'none', letterSpacing: 0 }}>avec texte</span>
         </div>
         <div className="stat">
+          <span>Cœurs</span>
+          <strong>{Number(data.counts.likes || 0).toLocaleString('fr-FR')}</strong>
+          <span style={{ textTransform: 'none', letterSpacing: 0 }}>réactions des lecteurs</span>
+        </div>
+        <div className="stat">
+          <span>Partages</span>
+          <strong>{Number(data.counts.shares || 0).toLocaleString('fr-FR')}</strong>
+          <span style={{ textTransform: 'none', letterSpacing: 0 }}>
+            dont {data.audience?.sharesToday || 0} aujourd’hui
+          </span>
+        </div>
+        <div className="stat">
           <span>Messages non lus</span>
           <strong>{data.counts.newMessages}</strong>
         </div>

@@ -7,6 +7,9 @@ import {
   offerList,
   availableCredits,
   creditChapterIds,
+  ensureReferralCode,
+  recordShare,
+  shareStats,
 } from '../db.mjs';
 import { currentUser } from '../auth.mjs';
 import { config, APP_VERSION, APP_RELEASE } from '../config.mjs';
@@ -87,7 +90,7 @@ publicRoutes.get('/health', (req, res) => {
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
     /* Pas de chemin absolu ici : /api/health est public. */
     storage: {
-      persistent: /\/var\/data|^\/data(\/|$)/.test(config.dataDir),
+      persistent: config.storagePersistent,
       boots: bootStats().boots,
       firstBoot: bootStats().firstBoot,
     },
@@ -113,6 +116,7 @@ function audienceOf(book, userId) {
     myReaction: mine?.emoji || null,
     followers: db.prepare('SELECT COUNT(*) AS total FROM author_follows WHERE author_name = ?').get(book.author).total,
     following,
+    ...shareStats(book.id),
   };
 }
 
@@ -280,6 +284,55 @@ publicRoutes.post('/books/:slug/view', (req, res) => {
   db.prepare('INSERT INTO book_views (book_id, chapter_id, user_id) VALUES (?, ?, ?)')
     .run(book.id, chapterId, user?.id || null);
   res.json({ ok: true, counted: true, views: db.prepare('SELECT views FROM books WHERE id = ?').get(book.id).views });
+});
+
+/* ---------- Partages ----------
+   Le lecteur diffuse un lien vers un roman (ou vers le site). On garde le canal
+   et, s'il est connecté, son code de parrainage : le lien sert à la fois de
+   publicité mesurable et de porte d'entrée pour le parrainage. */
+const SHARE_CHANNELS = ['whatsapp', 'telegram', 'facebook', 'x', 'email', 'copie', 'native', 'autre'];
+
+publicRoutes.post('/shares', (req, res) => {
+  const channel = String(req.body?.channel || 'autre').toLowerCase().slice(0, 20);
+  const slug = String(req.body?.bookSlug || '').trim();
+  const user = currentUser(req);
+
+  let bookId = null;
+  let target = '';
+  if (slug) {
+    const book = db.prepare("SELECT id, slug FROM books WHERE slug = ? AND status = 'published'").get(slug);
+    if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+    bookId = book.id;
+    target = `/roman/${book.slug}`;
+  }
+
+  const code = user ? ensureReferralCode(user.id) : '';
+  const result = recordShare({
+    bookId,
+    userId: user?.id || null,
+    channel: SHARE_CHANNELS.includes(channel) ? channel : 'autre',
+    code,
+    /* Empreinte de visiteur : adresse réseau + jour, jamais conservée en clair
+       au-delà du dédoublonnage. */
+    visitor: `${String(req.ip || '').slice(0, 40)}`,
+  });
+
+  res.json({ ok: true, code, path: target || '/', ...result });
+});
+
+/* Ce que le lecteur a partagé, à mettre dans sa bibliothèque personnelle. */
+publicRoutes.get('/shares/mine', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.json({ shares: 0, channels: [], code: '' });
+  const code = ensureReferralCode(user.id);
+  const rows = db
+    .prepare(
+      `SELECT s.channel, COUNT(*) AS n, MAX(s.created_at) AS last
+         FROM shares s WHERE s.user_id = ? GROUP BY s.channel ORDER BY n DESC`,
+    )
+    .all(user.id);
+  const total = rows.reduce((sum, r) => sum + r.n, 0);
+  res.json({ shares: total, channels: rows, code });
 });
 
 /* Réactions : une par lecteur et par roman, modifiable. */

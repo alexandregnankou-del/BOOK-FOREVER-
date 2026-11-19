@@ -222,14 +222,19 @@ export default function Reader() {
 
   const shareChapter = async () => {
     const chapter = state.data?.chapter;
+    const book = state.data?.book;
     const url = window.location.href;
-    const text = chapter ? `${chapter.title} — ${state.data.book.title}` : 'BOOK FOREVER';
+    const text = chapter ? `${chapter.title} — ${book.title}` : 'BOOK FOREVER';
+    /* Le partage est compté côté serveur : la console doit voir ce qui circule. */
+    const count = (channel) => api.share({ bookSlug: book?.slug || '', channel }).catch(() => {});
     try {
       if (navigator.share) {
         await navigator.share({ title: text, text, url });
+        count('native');
         return;
       }
       await navigator.clipboard.writeText(url);
+      count('copie');
       setShareNote('Lien copié');
       window.setTimeout(() => setShareNote(''), 2000);
     } catch {

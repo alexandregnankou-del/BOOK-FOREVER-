@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, formatXof } from '../api.js';
 import EmojiBar from '../components/EmojiBar.jsx';
+import ShareSheet from '../components/ShareSheet.jsx';
 import { useSession } from '../session.jsx';
 
 export default function BookPage() {
@@ -11,6 +12,7 @@ export default function BookPage() {
   const [error, setError] = useState('');
   const [favorite, setFavorite] = useState(false);
   const [favBusy, setFavBusy] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -78,6 +80,12 @@ export default function BookPage() {
 
   return (
     <div className="wrap">
+      <ShareSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        bookSlug={book.slug}
+        title={book.title}
+      />
       <div className="book-hero">
         <div className="cover">
           <img src={book.cover} alt={`Couverture — ${book.title}`} />
@@ -103,6 +111,9 @@ export default function BookPage() {
           >
             <span aria-hidden="true">{favorite ? '♥' : '♡'}</span>
             {favorite ? 'Dans mes favoris' : 'Ajouter aux favoris'}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={() => setShareOpen(true)}>
+            <span aria-hidden="true">↗</span> Partager
           </button>
           <section className="book-info">
             <header className="book-info-head">

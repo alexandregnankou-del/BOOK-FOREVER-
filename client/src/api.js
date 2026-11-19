@@ -25,6 +25,8 @@ export const api = {
   book: (slug) => request(`/api/books/${encodeURIComponent(slug)}`),
   chapter: (slug, number) => request(`/api/books/${encodeURIComponent(slug)}/chapters/${number}`),
   contact: (body) => request('/api/contact', { method: 'POST', body }),
+  share: (body) => request('/api/shares', { method: 'POST', body }),
+  myShares: () => request('/api/shares/mine'),
 
   me: () => request('/api/auth/me'),
   login: (body) => request('/api/auth/login', { method: 'POST', body }),
@@ -87,6 +89,7 @@ export const api = {
     validateCredit: (id) => request(`/api/admin/credits/${id}/validate`, { method: 'POST', body: {} }),
     rejectCredit: (id) => request(`/api/admin/credits/${id}/reject`, { method: 'POST', body: {} }),
     grantCredits: (id, body) => request(`/api/admin/users/${id}/credits`, { method: 'POST', body }),
+    audience: () => request('/api/admin/audience'),
   },
 };
 

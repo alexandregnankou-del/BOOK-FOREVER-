@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../session.jsx';
 import Dashboard from '../console/Dashboard.jsx';
+import Audience from '../console/Audience.jsx';
 import Books from '../console/Books.jsx';
 import Messages from '../console/Messages.jsx';
 import Orders from '../console/Orders.jsx';
@@ -12,6 +13,7 @@ import { api } from '../api.js';
 const TABS = [
   ['dashboard', 'Tableau de bord'],
   ['books', 'Romans & chapitres'],
+  ['audience', 'Audience'],
   ['messages', 'Messages'],
   ['orders', 'Ventes'],
   ['subs', 'Abonnements & auteurs'],
@@ -87,6 +89,7 @@ export default function Console() {
       <main className="console-main">
         {tab === 'dashboard' && <Dashboard onNavigate={setTab} />}
         {tab === 'books' && <Books />}
+        {tab === 'audience' && <Audience />}
         {tab === 'messages' && <Messages />}
         {tab === 'orders' && <Orders />}
         {tab === 'subs' && <Subs />}

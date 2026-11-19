@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
-import { db, getSettings, countWords, slugify, uniqueSlug, grantCredits } from '../db.mjs';
+import { db, getSettings, countWords, slugify, uniqueSlug, grantCredits, shareStats } from '../db.mjs';
 import { requireAdmin } from '../auth.mjs';
 import config from '../config.mjs';
 
@@ -29,6 +29,9 @@ adminRoutes.get('/stats', (req, res) => {
     pendingSubs: db.prepare("SELECT COUNT(*) AS n FROM subscriptions WHERE status = 'pending'").get().n,
     pendingPacks: db.prepare("SELECT COUNT(*) AS n FROM credit_orders WHERE status = 'pending'").get().n,
     newMessages: db.prepare("SELECT COUNT(*) AS n FROM messages WHERE status = 'new'").get().n,
+    /* Audience : cœurs et partages, les deux chiffres que l'éditeur regarde. */
+    likes: db.prepare('SELECT COUNT(*) AS n FROM book_reactions').get().n,
+    shares: db.prepare('SELECT COUNT(*) AS n FROM shares').get().n,
   };
   const providers = {
     wave: Boolean(getSettings().waveLink),
@@ -58,8 +61,38 @@ adminRoutes.get('/stats', (req, res) => {
     recent,
     /* La console doit savoir si la base survivra à un redémarrage : vendre un
        accès que le prochain redémarrage efface serait malhonnête. */
-    storage: { persistent: /\/var\/data|^\/data(\/|$)/.test(config.dataDir) },
+    storage: { persistent: config.storagePersistent },
+    audience: shareStats(),
   });
+});
+
+/* -------------------------------- Audience -------------------------------- */
+
+adminRoutes.get('/audience', (req, res) => {
+  const books = db
+    .prepare(
+      `SELECT b.id, b.slug, b.title, b.views,
+              (SELECT COUNT(*) FROM book_reactions r WHERE r.book_id = b.id) AS likes,
+              (SELECT COUNT(*) FROM shares s WHERE s.book_id = b.id) AS shares,
+              (SELECT COUNT(*) FROM author_follows f WHERE f.author_name = b.author) AS followers,
+              (SELECT COUNT(*) FROM favorites fa WHERE fa.book_id = b.id) AS favorites
+         FROM books b WHERE b.status = 'published' ORDER BY b.views DESC, b.id`,
+    )
+    .all();
+  const byChannel = db
+    .prepare('SELECT channel, COUNT(*) AS n FROM shares GROUP BY channel ORDER BY n DESC')
+    .all();
+  const daily = db
+    .prepare(
+      `SELECT substr(created_at,1,10) AS day, COUNT(*) AS n FROM shares
+        WHERE created_at >= datetime('now','-14 day') GROUP BY day ORDER BY day`,
+    )
+    .all();
+  const totals = books.reduce(
+    (acc, b) => ({ views: acc.views + b.views, likes: acc.likes + b.likes, shares: acc.shares + b.shares }),
+    { views: 0, likes: 0, shares: 0 },
+  );
+  res.json({ books, byChannel, daily, totals: { ...totals, ...shareStats() } });
 });
 
 /* ---------------------------------- Romans --------------------------------- */

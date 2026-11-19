@@ -2194,3 +2194,197 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   .console-foot > div { display: none; }
   .console-main { padding: 16px 14px 40px; }
 }
+
+/* ---------- Feuille de partage ---------- */
+.share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(8, 6, 4, 0.68);
+  backdrop-filter: blur(2px);
+}
+.share-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: #171310;
+  color: #f5efe6;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px 18px 0 0;
+  padding: 10px 18px calc(26px + env(safe-area-inset-bottom));
+  box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.45);
+  animation: share-in 0.22s ease-out;
+}
+@keyframes share-in {
+  from {
+    transform: translateY(26px);
+    opacity: 0.6;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (min-width: 620px) {
+  .share-backdrop {
+    align-items: center;
+  }
+  .share-sheet {
+    border-radius: 18px;
+  }
+}
+.share-grab {
+  width: 44px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  margin: 4px auto 14px;
+}
+.share-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.share-close {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-size: 1.05rem;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.share-grid {
+  display: grid;
+  gap: 8px;
+}
+.share-option {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  column-gap: 12px;
+  align-items: center;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.share-option:hover,
+.share-option:focus-visible {
+  border-color: var(--gold);
+}
+.share-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  grid-row: 1 / span 2;
+}
+.share-label {
+  grid-column: 2;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.share-sub {
+  grid-column: 2;
+  font-size: 0.76rem;
+  opacity: 0.55;
+}
+.share-link {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(185, 139, 46, 0.08);
+  border: 1px dashed rgba(185, 139, 46, 0.4);
+}
+.share-link code {
+  font-size: 0.72rem;
+  word-break: break-all;
+  opacity: 0.85;
+}
+
+/* ---------- Console : tableau d'audience ---------- */
+.audience-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.audience-row {
+  display: grid;
+  grid-template-columns: 1fr repeat(4, 62px);
+  gap: 6px;
+  align-items: center;
+  padding: 9px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.88rem;
+}
+.audience-row.head {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  border-bottom-color: rgba(255, 255, 255, 0.18);
+}
+.audience-row span:not(.audience-title) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.audience-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Sur téléphone le tableau défile horizontalement plutôt que d'écraser les
+   en-têtes les uns dans les autres. */
+@media (max-width: 640px) {
+  .audience-row {
+    grid-template-columns: minmax(120px, 1fr) repeat(3, 56px);
+    font-size: 0.8rem;
+  }
+  /* Les abonnés restent visibles sur ordinateur ; sur téléphone on garde les
+     trois chiffres qui comptent : vues, cœurs, partages. */
+  .audience-row span:nth-child(5) {
+    display: none;
+  }
+  /* Le titre passe à la ligne plutôt que d'être tronqué. */
+  .audience-title {
+    white-space: normal;
+    line-height: 1.25;
+  }
+  .audience-row.head {
+    font-size: 0.6rem;
+    letter-spacing: 0.04em;
+  }
+}
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 110px;
+}
+.bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  font-size: 0.62rem;
+  opacity: 0.85;
+}
+.bar-fill {
+  width: 100%;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+}
