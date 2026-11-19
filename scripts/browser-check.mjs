@@ -79,7 +79,7 @@ try {
     await sleep(400);
     const text = (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 90);
     const blank = text.trim().length < 20;
-    const boundary = await page.locator('text=Cette page n’a pas pu s’afficher').count();
+    const boundary = await page.locator('[data-bf-boundary]').count();
     const state = blank ? 'VIDE' : boundary ? 'ERREUR' : 'ok';
     console.log(`${state.padEnd(6)} ${route.padEnd(15)} ${text.slice(0, 60)}`);
     if (state !== 'ok') problems.push(`${route} → ${state}`);
