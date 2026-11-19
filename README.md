@@ -181,3 +181,5 @@ Secrets déjà enregistrés sur le dépôt : `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `K
 
 L'ambiance sonore de lecture est générée par `scripts/make-ambient.py` (synthèse pure, aucun ayant droit) :
 `python3 scripts/make-ambient.py` puis encodage MP3 vers `public/audio/lecture.mp3`.
+
+> Déploiement v50.2 : vérification de la chaîne Render.
