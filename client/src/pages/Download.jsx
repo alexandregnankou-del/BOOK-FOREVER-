@@ -21,11 +21,11 @@ export default function Download() {
           <div className="dl-icon">▲</div>
           <h2>Android</h2>
           <p className="muted">
-            Fichier <code>book-forever-v22.apk</code> (version 22.0.0, 1,9 Mo) — Android 7 et plus récent.
+            Fichier <code>book-forever-v50.apk</code> (version 50.0, 1,9 Mo) — Android 7 et plus récent.
             L’installation se fait par-dessus les versions précédentes : vos achats et vos lectures sont
             conservés. Si vous avez encore la 1.0.0 d’origine, désinstallez-la d’abord.
           </p>
-          <a className="btn btn-gold btn-block" href="/download/book-forever-v22.apk" download>
+          <a className="btn btn-gold btn-block" href="/download/book-forever-v50.apk" download>
             Télécharger l’application
           </a>
           <ol className="steps">
@@ -80,8 +80,8 @@ export default function Download() {
         </p>
         <p className="hint" style={{ marginTop: 14 }}>
           Pour héberger le site ailleurs ou l’archiver :{' '}
-          <a href="/download/book-forever-web-1.22.0.zip" download>
-            archive web 1.22.0
+          <a href="/download/book-forever-web-1.50.0.zip" download>
+            archive web 1.50.0
           </a>
           .
         </p>

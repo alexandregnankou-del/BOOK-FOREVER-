@@ -7,6 +7,40 @@ export const authRoutes = express.Router();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/* ---------- v50 : anti-force brute sur la connexion ----------
+   10 échecs pour un même couple adresse + e-mail sur 15 minutes. En mémoire :
+   le compteur repart de zéro au redémarrage, ce qui suffit à rendre une
+   attaque par dictionnaire impraticable. */
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILURES = 10;
+const loginFailures = new Map();
+
+function loginKey(req, email) {
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const ip = forwarded || req.ip || 'inconnu';
+  return `${ip}|${String(email || '').toLowerCase()}`;
+}
+
+function loginBlocked(key) {
+  const entry = loginFailures.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.firstAt > LOGIN_WINDOW_MS) {
+    loginFailures.delete(key);
+    return false;
+  }
+  return entry.count >= LOGIN_MAX_FAILURES;
+}
+
+function noteLoginFailure(key) {
+  const entry = loginFailures.get(key);
+  if (!entry || Date.now() - entry.firstAt > LOGIN_WINDOW_MS) {
+    loginFailures.set(key, { count: 1, firstAt: Date.now() });
+  } else {
+    entry.count += 1;
+  }
+  if (loginFailures.size > 5000) loginFailures.clear();
+}
+
 authRoutes.post('/register', (req, res) => {
   const email = String(req.body?.email || '').trim();
   const password = String(req.body?.password || '');
@@ -29,10 +63,18 @@ authRoutes.post('/register', (req, res) => {
 authRoutes.post('/login', (req, res) => {
   const email = String(req.body?.email || '').trim();
   const password = String(req.body?.password || '');
+  const key = loginKey(req, email);
+  if (loginBlocked(key)) {
+    return res.status(429).json({
+      error: 'Trop de tentatives. Réessayez dans un quart d’heure.',
+    });
+  }
   const user = findByEmail(email);
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    noteLoginFailure(key);
     return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
   }
+  loginFailures.delete(key);
   setSession(res, user);
   res.json({ user: publicUser(user) });
 });

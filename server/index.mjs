@@ -11,6 +11,7 @@ import { meRoutes } from './routes/me.mjs';
 import { adminRoutes } from './routes/admin.mjs';
 
 const app = express();
+app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '6mb' }));
 app.use(cookieParser());

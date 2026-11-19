@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android bloque le trafic non chiffré depuis Android 9. L'interface embarquée
+  est servie par le serveur interne de l'application sur 127.0.0.1 en HTTP :
+  sans cette exception, la WebView refuse la page locale et l'application
+  retombait sur le site distant (page blanche quand le cache était périmé).
+
+  Tout le reste — l'API, le site public — reste strictement en HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

@@ -257,6 +257,26 @@ test('changement de mot de passe puis reconnexion', async () => {
   assert.equal(newLogin.status, 200);
 });
 
+test('v50 : version et blocage après dix échecs de connexion', async () => {
+  const health = await client()('/api/health');
+  assert.equal(health.json.release, 'v50');
+  assert.equal(health.json.version, '1.50.0');
+
+  const email = 'brute-force@test.ci';
+  for (let i = 0; i < 10; i += 1) {
+    const attempt = await client()('/api/auth/login', {
+      method: 'POST',
+      body: { email, password: 'mauvais-mot-de-passe' },
+    });
+    assert.equal(attempt.status, 401);
+  }
+  const blocked = await client()('/api/auth/login', {
+    method: 'POST',
+    body: { email, password: 'mauvais-mot-de-passe' },
+  });
+  assert.equal(blocked.status, 429);
+});
+
 test('page publique rendue par le serveur', async () => {
   const res = await fetch(base + '/');
   assert.equal(res.status, 200);

@@ -113,6 +113,19 @@ Une copie de sauvegarde et son mode d'emploi se trouvent dans `backups/apk-signi
 
 ## Journal des versions
 
+### v50 — 19 novembre 2026
+- **Connexion protégée** : 10 échecs pour un même couple adresse + e-mail bloquent
+  la tentative pendant 15 minutes (`429`), ce qui rend une attaque par dictionnaire
+  inexploitable.
+- **Interface embarquée réparée sur Android** : exception `cleartext` limitée à
+  `127.0.0.1` et `localhost`. Sans elle, Android 9+ refusait la page locale et
+  l'application retombait sur le site distant — cause de la page blanche.
+- **Repli propre** : si la page locale échoue, l'app ouvre le site distant ; l'écran
+  hors ligne n'apparaît qu'en dernier recours.
+- **Version lue depuis le paquet** : l'app ne s'annonce plus en `20.0`.
+- **En-tête `X-Powered-By` retiré**, service worker `bf-v4`, écran de secours si le
+  chargement échoue, bande claire du lecteur corrigée, console lisible sur téléphone.
+
 ### v22.1 — 19 novembre 2026
 - **Nouveau roman** : *Si je t'aimais au présent*, adaptation de la BD en 10 chapitres
   (12 700 mots), narration à la première personne par Mike, avec deux chapitres en

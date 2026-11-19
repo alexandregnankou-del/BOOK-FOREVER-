@@ -39,7 +39,7 @@ public class MainActivity extends Activity {
     private static final String START_URL = "https://book-forever.onrender.com/";
     private static final String HOME_HOST = "book-forever.onrender.com";
     private static final String OFFLINE_PAGE = "file:///android_asset/offline.html";
-    private static final String UA_SUFFIX = " BookForeverApp/20.0";
+    private static final String UA_SUFFIX = " BookForeverApp/50.0";
     private static final String INK = "#14110E";
     private static final String GOLD = "#C9A227";
 
@@ -124,13 +124,13 @@ public class MainActivity extends Activity {
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) showOffline();
+                if (request.isForMainFrame()) handlePageError(request.getUrl().toString());
             }
 
             @Override
             @SuppressWarnings("deprecation")
             public void onReceivedError(WebView view, int code, String description, String failingUrl) {
-                showOffline();
+                handlePageError(failingUrl);
             }
         });
 
@@ -250,6 +250,18 @@ public class MainActivity extends Activity {
         });
     }
 
+    /** Page locale injoignable : on tente le site distant avant d'afficher l'écran hors ligne. */
+    private void handlePageError(String failedUrl) {
+        String url = failedUrl == null ? "" : failedUrl;
+        boolean localPage = url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost");
+        if (localPage && !fellBack) {
+            fellBack = true;
+            webView.loadUrl(START_URL);
+            return;
+        }
+        showOffline();
+    }
+
     private void showOffline() {
         if (webView.getUrl() != null && webView.getUrl().startsWith("file:")) return;
         webView.loadUrl(OFFLINE_PAGE);
@@ -326,7 +338,12 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() {
-            return "20.0";
+            /* Lu depuis le paquet : ne peut plus se désynchroniser de l'APK. */
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            } catch (Exception e) {
+                return "50.0";
+            }
         }
     }
 
