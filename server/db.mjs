@@ -423,13 +423,14 @@ export function shareStats(bookId = null) {
  * diffusion réelle, pas le nombre de clics.
  */
 export function recordShare({ bookId = null, userId = null, channel = 'autre', code = '', visitor = '' }) {
-  const day = new Date().toISOString().slice(0, 10);
+  /* Fenêtre calculée par SQLite : Node et SQLite partagent ainsi la même horloge,
+     ce qui évite un décalage de fuseau qui rendrait le dédoublonnage inopérant. */
   const already = db
     .prepare(
       `SELECT 1 FROM shares WHERE book_id IS ? AND visitor = ? AND channel = ?
-         AND substr(created_at,1,10) = ?`,
+         AND created_at >= datetime('now','-1 day')`,
     )
-    .get(bookId, visitor, channel, day);
+    .get(bookId, visitor, channel);
   if (!already) {
     db.prepare('INSERT INTO shares (book_id, user_id, channel, code, visitor) VALUES (?, ?, ?, ?, ?)').run(
       bookId,

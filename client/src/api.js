@@ -1,3 +1,21 @@
+/** Identifiant de visiteur stable, gardé dans le navigateur : il sert à ne pas
+ *  compter deux fois le même partage, sans dépendre de l'adresse IP. */
+export function visitorId() {
+  try {
+    const key = 'bf_visitor';
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`)
+        .replace(/[^a-zA-Z0-9-]/g, '')
+        .slice(0, 36);
+      localStorage.setItem(key, id);
+    }
+    return id;
+  } catch {
+    return '';
+  }
+}
+
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
 async function request(path, { method = 'GET', body, ...rest } = {}) {
@@ -25,7 +43,7 @@ export const api = {
   book: (slug) => request(`/api/books/${encodeURIComponent(slug)}`),
   chapter: (slug, number) => request(`/api/books/${encodeURIComponent(slug)}/chapters/${number}`),
   contact: (body) => request('/api/contact', { method: 'POST', body }),
-  share: (body) => request('/api/shares', { method: 'POST', body }),
+  share: (body) => request('/api/shares', { method: 'POST', body: { ...body, visitor: visitorId() } }),
   myShares: () => request('/api/shares/mine'),
 
   me: () => request('/api/auth/me'),

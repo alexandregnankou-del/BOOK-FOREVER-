@@ -453,3 +453,23 @@ test('console : cœurs et partages par roman', async () => {
   assert.ok(book && book.shares >= 2, 'les partages par roman doivent remonter');
   assert.ok(typeof book.likes === 'number');
 });
+
+test('partage : deux visiteurs différents comptent, un même visiteur non', async () => {
+  const first = await anon('/api/shares', {
+    method: 'POST',
+    body: { bookSlug: 'si-je-t-aimais-au-present', channel: 'x', visitor: 'visiteur-alpha-001' },
+  });
+  assert.equal(first.json.counted, true);
+
+  const same = await anon('/api/shares', {
+    method: 'POST',
+    body: { bookSlug: 'si-je-t-aimais-au-present', channel: 'x', visitor: 'visiteur-alpha-001' },
+  });
+  assert.equal(same.json.counted, false, 'même visiteur, même canal : pas de double comptage');
+
+  const other = await anon('/api/shares', {
+    method: 'POST',
+    body: { bookSlug: 'si-je-t-aimais-au-present', channel: 'x', visitor: 'visiteur-beta-002' },
+  });
+  assert.equal(other.json.counted, true, 'un autre visiteur compte comme un partage de plus');
+});

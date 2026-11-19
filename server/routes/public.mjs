@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'node:crypto';
 import {
   hasActiveSubscription,
   db,
@@ -307,14 +308,19 @@ publicRoutes.post('/shares', (req, res) => {
   }
 
   const code = user ? ensureReferralCode(user.id) : '';
+
+  /* Identifiant fourni par le navigateur (stocké localement). L'adresse IP ne
+     convient pas : derrière le CDN de Render elle change d'une requête à
+     l'autre, ce qui faisait compter deux fois le même partage. */
+  const clientVisitor = String(req.body?.visitor || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 40);
+  const fallback = crypto.createHash('sha1').update(`${req.ip || ''}|${req.get('user-agent') || ''}`).digest('hex').slice(0, 24);
+
   const result = recordShare({
     bookId,
     userId: user?.id || null,
     channel: SHARE_CHANNELS.includes(channel) ? channel : 'autre',
     code,
-    /* Empreinte de visiteur : adresse réseau + jour, jamais conservée en clair
-       au-delà du dédoublonnage. */
-    visitor: `${String(req.ip || '').slice(0, 40)}`,
+    visitor: clientVisitor || fallback,
   });
 
   res.json({ ok: true, code, path: target || '/', ...result });
