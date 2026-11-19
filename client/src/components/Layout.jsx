@@ -8,6 +8,19 @@ export default function Layout() {
   const { user, logout } = useSession();
   const { pathname } = useLocation();
 
+  /* Version réellement installée, lue depuis l'application Android quand elle
+     est présente. Permet de vérifier d'un coup d'œil quelle version tourne. */
+  const appVersion =
+    typeof window !== 'undefined' && window.BookForever && typeof window.BookForever.version === 'function'
+      ? (() => {
+          try {
+            return window.BookForever.version();
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
   }, [pathname]);
@@ -36,6 +49,9 @@ export default function Layout() {
 
       <footer className="site-footer">
         <div className="wrap">
+          <p className="muted" style={{ color: '#9a9082', fontSize: '0.76rem', marginTop: 0 }}>
+            {appVersion ? `Application Android ${appVersion}` : 'Version web'}
+          </p>
           <div className="cols">
             <div>
               <h4>{site.siteName}</h4>

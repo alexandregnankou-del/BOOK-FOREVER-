@@ -39,7 +39,7 @@ public class MainActivity extends Activity {
     private static final String START_URL = "https://book-forever.onrender.com/";
     private static final String HOME_HOST = "book-forever.onrender.com";
     private static final String OFFLINE_PAGE = "file:///android_asset/offline.html";
-    private static final String UA_SUFFIX = " BookForeverApp/50.0";
+    private static final String UA_SUFFIX = " BookForeverApp/50.1";
     private static final String INK = "#14110E";
     private static final String GOLD = "#C9A227";
 

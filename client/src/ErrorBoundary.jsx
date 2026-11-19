@@ -41,9 +41,22 @@ export default class ErrorBoundary extends React.Component {
           <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 26, margin: '14px 0 10px' }}>
             Cette page n’a pas pu s’afficher
           </h1>
-          <p style={{ color: '#C4B8A4', margin: '0 0 22px' }}>
+          <p style={{ color: '#C4B8A4', margin: '0 0 14px' }}>
             Vos achats et vos lectures sont intacts. Rechargez la page ; si l’écran reste vide, videz le cache de
             l’application.
+          </p>
+          <p
+            style={{
+              color: 'rgba(196,184,164,.6)',
+              fontSize: 11.5,
+              fontFamily: 'ui-monospace, monospace',
+              margin: '0 0 20px',
+              wordBreak: 'break-word',
+            }}
+          >
+            {`${typeof window !== 'undefined' ? window.location.pathname : ''} · ${String(
+              error?.message || error || 'erreur inconnue',
+            ).slice(0, 200)}`}
           </p>
           <button
             type="button"
@@ -59,6 +72,23 @@ export default class ErrorBoundary extends React.Component {
             }}
           >
             Recharger
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = '/';
+            }}
+            style={{
+              padding: '13px 22px',
+              borderRadius: 999,
+              border: '1px solid rgba(201,162,39,.5)',
+              background: 'transparent',
+              color: '#F5EFE6',
+              fontWeight: 500,
+              marginRight: 10,
+            }}
+          >
+            Accueil
           </button>
           <button
             type="button"

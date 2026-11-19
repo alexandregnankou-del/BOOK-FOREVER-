@@ -49,8 +49,8 @@ echo "2/6 link…"
   --java "$OUT/gen" \
   --min-sdk-version 24 \
   --target-sdk-version 34 \
-  --version-code 50 \
-  --version-name 50.0 \
+  --version-code 52 \
+  --version-name 50.2 \
   --auto-add-overlay
 
 echo "3/6 javac…"
