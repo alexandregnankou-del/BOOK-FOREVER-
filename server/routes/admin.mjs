@@ -56,6 +56,9 @@ adminRoutes.get('/stats', (req, res) => {
     counts,
     providers,
     recent,
+    /* La console doit savoir si la base survivra à un redémarrage : vendre un
+       accès que le prochain redémarrage efface serait malhonnête. */
+    storage: { persistent: /\/var\/data|^\/data(\/|$)/.test(config.dataDir) },
   });
 });
 

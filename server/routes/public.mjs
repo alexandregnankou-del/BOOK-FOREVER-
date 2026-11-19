@@ -85,11 +85,11 @@ publicRoutes.get('/health', (req, res) => {
     version: APP_VERSION,
     time: new Date().toISOString(),
     payments: { anyProviderConfigured: Boolean(getSettings().waveLink || getSettings().orangeNumber) },
+    /* Pas de chemin absolu ici : /api/health est public. */
     storage: {
-      dir: config.dataDir,
-      uploads: config.uploadsDir,
-      persistent: /\/var\/data|\/data/.test(config.dataDir),
-      ...bootStats(),
+      persistent: /\/var\/data|^\/data(\/|$)/.test(config.dataDir),
+      boots: bootStats().boots,
+      firstBoot: bootStats().firstBoot,
     },
   });
 });

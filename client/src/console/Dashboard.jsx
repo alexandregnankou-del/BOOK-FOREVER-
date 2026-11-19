@@ -23,8 +23,17 @@ export default function Dashboard({ onNavigate }) {
     ['Envoi des e-mails', data.providers.email],
   ];
 
+  const volatile = data.storage && data.storage.persistent === false;
+
   return (
     <>
+      {volatile && (
+        <div className="alert error" style={{ marginBottom: 18 }}>
+          <strong>Données non persistantes.</strong> Cette instance gratuite efface comptes lecteurs et achats à
+          chaque redémarrage. Validez un paiement en connaissance de cause, et exportez le CSV des ventes après
+          chaque encaissement.
+        </div>
+      )}
       <div className="console-head">
         <div>
           <span className="eyebrow">Vue d’ensemble</span>
