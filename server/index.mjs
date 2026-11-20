@@ -3,7 +3,7 @@ import cookieParser from 'cookie-parser';
 import fs from 'node:fs';
 import path from 'node:path';
 import config, { APP_VERSION, APP_RELEASE } from './config.mjs';
-import { recordBoot, db, publicSite } from './db.mjs';
+import { recordBoot, normalizeCovers, db, publicSite } from './db.mjs';
 import { seedDatabase } from './seed.mjs';
 import { publicRoutes } from './routes/public.mjs';
 import { authRoutes } from './routes/auth.mjs';
@@ -46,6 +46,7 @@ app.use((req, res, next) => {
 });
 
 seedDatabase({ quiet: true });
+normalizeCovers();
 
 app.use('/api', publicRoutes);
 app.use('/api/auth', authRoutes);

@@ -21,11 +21,10 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     prompted = true;
     const bar = document.createElement('div');
     bar.setAttribute('role', 'status');
-    /* Sur les pages avec barre d'onglets, le bandeau doit passer au-dessus :
-       collé en bas, il masquait le bouton principal de l'accueil. */
-    const tabBar = document.body.classList.contains('with-tabbar') ? 96 : 20;
+    /* En haut de l'écran : en bas, le bandeau recouvrait le bouton principal de
+       l'accueil et celui du lecteur. */
     bar.style.cssText =
-      `position:fixed;left:50%;transform:translateX(-50%);bottom:calc(${tabBar}px + env(safe-area-inset-bottom));z-index:9999;` +
+      'position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:9999;' +
       'display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:14px;' +
       'background:#14110E;color:#F5EFE6;font:14px system-ui,sans-serif;' +
       'box-shadow:0 10px 30px rgba(0,0,0,.35);border:1px solid rgba(201,162,39,.35)';

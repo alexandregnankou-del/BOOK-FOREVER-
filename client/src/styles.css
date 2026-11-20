@@ -322,22 +322,12 @@ select {
   margin-top: 26px;
 }
 
-.hero-actions .btn {
+/* Seul le bouton principal est doré : deux boutons identiques ne donnaient
+   aucune indication sur l'action à privilégier. */
+.hero-actions .btn:not(.btn-ghost):not(.btn-whatsapp) {
   background: var(--gold);
   border-color: var(--gold);
   color: #1b1509;
-}
-
-.hero-actions /* Bouton WhatsApp : la couleur officielle rend l'action évidente au premier regard. */
-.btn-whatsapp {
-  background: #1faa54;
-  border-color: #1faa54;
-  color: #fff;
-}
-
-.btn-whatsapp:hover {
-  background: #178f46;
-  border-color: #178f46;
 }
 
 .btn-ghost {

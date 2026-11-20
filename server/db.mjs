@@ -525,6 +525,21 @@ export function hasActiveSubscription(userId) {
 }
 
 /** Trace chaque démarrage : preuve que le disque persiste d'un déploiement à l'autre. */
+/* Uniformise les couvertures : si un équivalent WebP existe à côté du JPEG
+   d'origine, on bascule l'enregistrement dessus — même image, deux fois plus
+   légère. Idempotent : rien à faire si c'est déjà fait. */
+export function normalizeCovers() {
+  let updated = 0;
+  const rows = db.prepare("SELECT id, cover FROM books WHERE cover LIKE '/media/covers/%.jpg'").all();
+  for (const row of rows) {
+    const webp = row.cover.replace(/\.jpe?g$/i, '.webp');
+    if (!fs.existsSync(path.join(config.publicDir, webp.replace(/^\//, '')))) continue;
+    db.prepare('UPDATE books SET cover = ? WHERE id = ?').run(webp, row.id);
+    updated += 1;
+  }
+  return updated;
+}
+
 export function recordBoot(dataDir) {
   try {
     db.prepare('INSERT INTO boots (data_dir) VALUES (?)').run(String(dataDir || ''));
