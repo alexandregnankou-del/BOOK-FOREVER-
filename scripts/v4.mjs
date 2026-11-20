@@ -1,0 +1,13 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--no-sandbox'] });
+const c = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 });
+const p = await c.newPage();
+p.on('pageerror', e => console.log('JS:', e.message.slice(0,120)));
+await p.goto('http://127.0.0.1:5013/roman/amour-perdu', { waitUntil: 'networkidle' });
+await p.waitForTimeout(1500);
+const pdf = await p.locator('a[href$=".pdf"]').count();
+const title = await p.locator('h1').first().innerText().catch(() => '(aucun)');
+console.log('titre :', title.replace(/\n/g,' '));
+console.log('bouton PDF :', pdf ? 'présent' : 'ABSENT');
+await p.screenshot({ path: '/tmp/amour-perdu-fiche.png' });
+await b.close();
