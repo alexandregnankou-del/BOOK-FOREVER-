@@ -154,16 +154,6 @@ export default function BookPage() {
               <Link to={`/lire/${book.slug}/${first.number}`} className="btn btn-gold">
                 Lire le premier chapitre
               </Link>
-              {pdfReady && (
-                <a
-                  href={`/download/${book.slug}.pdf`}
-                  className="btn btn-ghost"
-                  style={{ marginLeft: 10 }}
-                  download
-                >
-                  Télécharger le PDF
-                </a>
-              )}
             </div>
           )}
         </div>
