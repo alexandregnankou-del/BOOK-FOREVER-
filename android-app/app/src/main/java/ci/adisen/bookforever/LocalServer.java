@@ -130,14 +130,15 @@ public class LocalServer {
         if (target.startsWith("/api/")) {
             proxy(method, target, headers, body, out);
         } else {
-            serveAsset(method, target, out);
+            serveAsset(method, target, headers, out);
         }
         out.flush();
     }
 
     /* ---------------- fichiers embarqués ---------------- */
 
-    private void serveAsset(String method, String target, OutputStream out) throws IOException {
+    private void serveAsset(String method, String target, List<String[]> headers, OutputStream out)
+            throws IOException {
         String path = target;
         int q = path.indexOf('?');
         if (q >= 0) path = path.substring(0, q);
@@ -155,9 +156,9 @@ public class LocalServer {
         // Téléchargements et galerie : renvoyés au site, qui les sert vraiment.
         if (path.startsWith("/download/") || path.startsWith("/pub/")) {
             String location = API_ORIGIN + target;
-            String headers = "HTTP/1.1 302 Found\r\nLocation: " + location
+            String redirect = "HTTP/1.1 302 Found\r\nLocation: " + location
                     + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-            out.write(headers.getBytes(StandardCharsets.UTF_8));
+            out.write(redirect.getBytes(StandardCharsets.UTF_8));
             return;
         }
 
@@ -178,7 +179,85 @@ public class LocalServer {
             write(out, 200, "OK", "text/html; charset=utf-8", data, method);
             return;
         }
-        write(out, 200, "OK", contentType(path), data, method);
+        writeMedia(out, method, path, data, headers);
+    }
+
+    /**
+     * Réponse d'un fichier embarqué, avec gestion de l'en-tête Range.
+     *
+     * Indispensable à la vidéo : le lecteur de Chromium demande d'abord
+     * « bytes=0- » et compte sur un 206 pour pouvoir ensuite se déplacer dans
+     * le fichier. Sans Range, le clip se bloque ou refuse de démarrer.
+     */
+    private void writeMedia(OutputStream out, String method, String path, byte[] data, List<String[]> headers)
+            throws IOException {
+        String type = contentType(path);
+        String range = headerValue(headers, "Range");
+
+        if (range != null) {
+            long[] span = parseRange(range, data.length);
+            if (span == null) {
+                String refusal = "HTTP/1.1 416 Range Not Satisfiable\r\nContent-Range: bytes */"
+                        + data.length + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                out.write(refusal.getBytes(StandardCharsets.UTF_8));
+                return;
+            }
+            int start = (int) span[0];
+            int length = (int) (span[1] - span[0] + 1);
+            StringBuilder head = new StringBuilder();
+            head.append("HTTP/1.1 206 Partial Content\r\n");
+            head.append("Content-Type: ").append(type).append("\r\n");
+            head.append("Content-Length: ").append(length).append("\r\n");
+            head.append("Content-Range: bytes ").append(start).append('-').append(span[1])
+                    .append('/').append(data.length).append("\r\n");
+            head.append("Accept-Ranges: bytes\r\n");
+            head.append("Cache-Control: no-store\r\n");
+            head.append("Connection: close\r\n\r\n");
+            out.write(head.toString().getBytes(StandardCharsets.UTF_8));
+            if (!"HEAD".equals(method)) out.write(data, start, length);
+            return;
+        }
+
+        StringBuilder head = new StringBuilder();
+        head.append("HTTP/1.1 200 OK\r\n");
+        head.append("Content-Type: ").append(type).append("\r\n");
+        head.append("Content-Length: ").append(data.length).append("\r\n");
+        head.append("Accept-Ranges: bytes\r\n");
+        head.append("Cache-Control: no-store\r\n");
+        head.append("Connection: close\r\n\r\n");
+        out.write(head.toString().getBytes(StandardCharsets.UTF_8));
+        if (!"HEAD".equals(method)) out.write(data);
+    }
+
+    private static String headerValue(List<String[]> headers, String wanted) {
+        for (String[] header : headers) {
+            if (header[0].equalsIgnoreCase(wanted)) return header[1];
+        }
+        return null;
+    }
+
+    /** « bytes=0- » , « bytes=100-999 » , « bytes=-500 » → {début, fin} ; null si invalide. */
+    private static long[] parseRange(String value, int total) {
+        if (total <= 0 || !value.startsWith("bytes=")) return null;
+        String spec = value.substring(6).split(",")[0].trim();
+        int dash = spec.indexOf('-');
+        if (dash < 0) return null;
+        String startText = spec.substring(0, dash).trim();
+        String endText = spec.substring(dash + 1).trim();
+        try {
+            if (startText.isEmpty()) {
+                int suffix = Integer.parseInt(endText);
+                if (suffix <= 0) return null;
+                int start = Math.max(0, total - suffix);
+                return new long[]{start, total - 1};
+            }
+            long start = Long.parseLong(startText);
+            long end = endText.isEmpty() ? total - 1 : Math.min(Long.parseLong(endText), total - 1);
+            if (start >= total || start > end) return null;
+            return new long[]{start, end};
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private byte[] readAsset(String path) {
@@ -210,6 +289,8 @@ public class LocalServer {
         if (p.endsWith(".woff2")) return "font/woff2";
         if (p.endsWith(".woff")) return "font/woff";
         if (p.endsWith(".mp3")) return "audio/mpeg";
+        if (p.endsWith(".mp4") || p.endsWith(".m4v")) return "video/mp4";
+        if (p.endsWith(".webm")) return "video/webm";
         if (p.endsWith(".ico")) return "image/x-icon";
         return "application/octet-stream";
     }

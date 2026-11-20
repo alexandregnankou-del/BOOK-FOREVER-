@@ -15,7 +15,7 @@ APP="$HERE/app/src/main"
 WWW="$HERE/app/src/main/assets/www"
 if [ -d "$HERE/../dist" ]; then
   rm -rf "$WWW"
-  mkdir -p "$WWW/media/covers"
+  mkdir -p "$WWW/media/covers" "$WWW/media/videos"
   cp "$HERE/../dist/index.html" "$WWW/" 2>/dev/null || true
   cp "$HERE/../dist/manifest.webmanifest" "$WWW/" 2>/dev/null || true
   cp "$HERE/../dist/sw.js" "$WWW/" 2>/dev/null || true
@@ -25,6 +25,7 @@ if [ -d "$HERE/../dist" ]; then
   cp -r "$HERE/../dist/icons" "$WWW/" 2>/dev/null || true
   cp -r "$HERE/../dist/audio" "$WWW/" 2>/dev/null || true
   cp -r "$HERE/../dist/media/covers/." "$WWW/media/covers/" 2>/dev/null || true
+  cp -r "$HERE/../dist/media/videos/." "$WWW/media/videos/" 2>/dev/null || true
   echo "interface embarquée : $(du -sh "$WWW" | cut -f1)"
 fi
 
@@ -50,16 +51,20 @@ echo "2/6 link…"
   --java "$OUT/gen" \
   --min-sdk-version 24 \
   --target-sdk-version 34 \
-  --version-code 59 \
-  --version-name 51.5 \
+  --version-code 60 \
+  --version-name 52 \
   --auto-add-overlay
 
 echo "3/6 javac…"
 find "$APP/java" "$OUT/gen" -name '*.java' > "$OUT/sources.txt"
-javac -encoding UTF-8 -source 8 -target 8 -nowarn -Xlint:-options \
+if ! javac -encoding UTF-8 -source 8 -target 8 -nowarn -Xlint:-options \
   -bootclasspath "$PLATFORM" \
   -classpath "$PLATFORM" \
-  -d "$OUT/obj" @"$OUT/sources.txt" 2>&1 | grep -v "^Note:" || true
+  -d "$OUT/obj" @"$OUT/sources.txt" 2> "$OUT/javac.log"; then
+  grep -v "^Note:" "$OUT/javac.log" || true
+  echo "javac a échoué : APK non produit."
+  exit 1
+fi
 
 echo "4/6 d8…"
 find "$OUT/obj" -name '*.class' > "$OUT/classes.txt"
@@ -86,7 +91,7 @@ if [ ! -f "$KS" ]; then
     -dname "CN=ADISEN, OU=BOOK FOREVER, O=ADISEN, L=Abidjan, C=CI" > /dev/null 2>&1
 fi
 "$BT/apksigner" sign --ks "$KS" --ks-pass pass:bookforever \
-  --key-pass pass:bookforever --out "$OUT/book-forever-v51.5.apk" "$OUT/aligned.apk"
+  --key-pass pass:bookforever --out "$OUT/book-forever-v52.apk" "$OUT/aligned.apk"
 
-"$BT/apksigner" verify --print-certs "$OUT/book-forever-v51.5.apk" | head -3
-echo "APK prêt : $OUT/book-forever-v51.5.apk ($(du -h "$OUT/book-forever-v51.5.apk" | cut -f1))"
+"$BT/apksigner" verify --print-certs "$OUT/book-forever-v52.apk" | head -3
+echo "APK prêt : $OUT/book-forever-v52.apk ($(du -h "$OUT/book-forever-v52.apk" | cut -f1))"

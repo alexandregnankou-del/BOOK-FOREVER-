@@ -5,6 +5,7 @@ import { useSite } from '../site.jsx';
 import { useSession } from '../session.jsx';
 import BookCard from '../components/BookCard.jsx';
 import PromoRail from '../components/PromoRail.jsx';
+import VideoRail from '../components/VideoRail.jsx';
 import Spotlight from '../components/Spotlight.jsx';
 
 export default function Home() {
@@ -76,6 +77,8 @@ export default function Home() {
       </section>
 
       {books.length > 0 && <PromoRail books={books} channelUrl={site.channelUrl || ''} />}
+
+      <VideoRail channelUrl={site.channelUrl || ''} />
 
       {resume && (
         <section className="section resume-section">

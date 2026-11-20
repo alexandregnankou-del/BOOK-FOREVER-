@@ -45,7 +45,7 @@ export default function Install() {
     <div className="page">
       <div className="wrap">
         <div className="page-head">
-          <span className="eyebrow">Application · version 51.5</span>
+          <span className="eyebrow">Application · version 52</span>
           <h1>Installer {site.siteName} sur votre téléphone</h1>
           <p className="muted">
             Une icône sur l’écran d’accueil, ouverture en plein écran, et lecture possible même avec une connexion
@@ -106,35 +106,30 @@ export default function Install() {
           <div className="section-head">
             <div>
               <span className="eyebrow">Nouveautés</span>
-              <h2 style={{ fontSize: '1.5rem' }}>Ce que change la version 51.5</h2>
+              <h2 style={{ fontSize: '1.5rem' }}>Ce que change la version 52</h2>
             </div>
           </div>
           <ul className="release-list">
             <li>
-              <strong>Fiche roman réparée</strong> — l’écran « Cette page n’a pas pu s’afficher » ne revient plus
-              quand on ouvre un roman.
+              <strong>Vidéos</strong> — les romans se présentent en clips verticaux de 8 secondes, dans un
+              bandeau sur l’accueil et sur la page <Link to="/videos">Vidéos</Link>. Lecture en boucle,
+              sans son : rien ne vient couper votre musique.
             </li>
             <li>
-              <strong>Mise à jour automatique</strong> — l’ancienne version en cache est effacée au premier
-              lancement, sans rien vider à la main.
+              <strong>Hors connexion</strong> — les clips sont embarqués dans l’application Android : ils
+              tournent même sans réseau.
             </li>
             <li>
-              <strong>Reprendre la lecture</strong> — la page d’accueil vous ramène au chapitre laissé en cours, à la
-              bonne hauteur de page.
+              <strong>Cœurs et partages</strong> — la console compte les likes et les partages de chaque
+              roman, avec le détail par jour et par canal.
             </li>
             <li>
-              <strong>Favoris</strong> — gardez un roman de côté et retrouvez-le dans l’onglet « Mes favoris » de la
-              bibliothèque.
+              <strong>Sortie du jour</strong> — le chapitre du moment est mis en avant sur l’accueil, avec son
+              annonce prête à copier dans WhatsApp.
             </li>
             <li>
-              <strong>Recherche</strong> — titre, auteur ou thème, filtrable par catégorie dans la bibliothèque.
-            </li>
-            <li>
-              <strong>Sommaire dans le lecteur</strong> — ouvrez la table des chapitres sans quitter la lecture, avec
-              repère du chapitre en cours et cadenas sur ceux à débloquer.
-            </li>
-            <li>
-              <strong>Partage</strong> — envoyez un chapitre à un proche depuis le lecteur, directement dans WhatsApp.
+              <strong>Sommaire dans le lecteur</strong> — ouvrez la table des chapitres sans quitter la
+              lecture, avec repère du chapitre en cours et cadenas sur ceux à débloquer.
             </li>
           </ul>
         </section>

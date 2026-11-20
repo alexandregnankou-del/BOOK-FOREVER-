@@ -7,6 +7,7 @@ import ErrorBoundary from './ErrorBoundary.jsx';
 import Layout from './components/Layout.jsx';
 import Home from './pages/Home.jsx';
 import Library from './pages/Library.jsx';
+import Videos from './pages/Videos.jsx';
 import BookPage from './pages/Book.jsx';
 import Reader from './pages/Reader.jsx';
 import Login from './pages/Login.jsx';
@@ -29,6 +30,7 @@ export function AppRoutes() {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/bibliotheque" element={<Library />} />
+        <Route path="/videos" element={<Videos />} />
         <Route path="/roman/:slug" element={<BookPage />} />
         <Route path="/connexion" element={<Login />} />
         <Route path="/inscription" element={<Register />} />

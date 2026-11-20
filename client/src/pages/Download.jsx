@@ -10,8 +10,8 @@ export default function Download() {
         <span className="eyebrow">Application mobile</span>
         <h1>BOOK FOREVER dans votre poche</h1>
         <p className="muted">
-          Une application légère (1,9 Mo) qui réunit tout : la bibliothèque, les chapitres offerts,
-           le lecteur, vos achats et votre compte. Aucun magasin d’applications, aucun compte Google
+          Une application légère qui réunit tout : la bibliothèque, les clips vidéo des romans, les
+           chapitres offerts, le lecteur, vos achats et votre compte. Aucun magasin d’applications, aucun compte Google
            nécessaire.
         </p>
       </section>
@@ -21,11 +21,11 @@ export default function Download() {
           <div className="dl-icon">▲</div>
           <h2>Android</h2>
           <p className="muted">
-            Fichier <code>book-forever-v51.5.apk</code> (version 51.5, 1,9 Mo) — Android 7 et plus récent.
+            Fichier <code>book-forever-v52.apk</code> (version 52, 7,3 Mo) — Android 7 et plus récent.
             L’installation se fait par-dessus les versions précédentes : vos achats et vos lectures sont
             conservés. Si vous avez encore la 1.0.0 d’origine, désinstallez-la d’abord.
           </p>
-          <a className="btn btn-gold btn-block" href="/download/book-forever-v51.5.apk" download>
+          <a className="btn btn-gold btn-block" href="/download/book-forever-v52.apk" download>
             Télécharger l’application
           </a>
           <ol className="steps">
@@ -69,6 +69,9 @@ export default function Download() {
         <h2>Ce que contient l’application</h2>
         <ul className="checklist">
           <li>Tout le catalogue, avec les deux premiers chapitres offerts par roman.</li>
+          <li>
+            Les clips vidéo des romans, embarqués dans l’application : ils tournent même sans connexion.
+          </li>
           <li>Le lecteur réglé pour le téléphone : taille de texte, thème sombre, reprise de lecture.</li>
           <li>Vos achats et votre progression, conservés d’une session à l’autre.</li>
           <li>Paiement par Wave ou Orange Money : le chapitre à l’unité, le pass de 7 jours, le pack de 5 chapitres ou l’abonnement au mois.</li>

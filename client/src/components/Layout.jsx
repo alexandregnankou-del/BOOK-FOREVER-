@@ -76,6 +76,7 @@ export default function Layout() {
               <h4>Lire</h4>
               <div className="links">
                 <Link to="/bibliotheque">Tous les romans</Link>
+                <Link to="/videos">Les romans en vidéo</Link>
                 <Link to="/telecharger">Télécharger l’application</Link>
                 <Link to="/installer">Installer en 3 touches</Link>
                 {site.channelUrl && (

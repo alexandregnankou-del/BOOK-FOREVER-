@@ -73,7 +73,7 @@ app.get('/sitemap.xml', (req, res) => {
   const origin = originOf(req);
   const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const pages = [
-    ['/', '1.0'], ['/bibliotheque', '0.9'], ['/auteurs', '0.7'], ['/a-propos', '0.5'],
+    ['/', '1.0'], ['/bibliotheque', '0.9'], ['/videos', '0.7'], ['/auteurs', '0.7'], ['/a-propos', '0.5'],
     ['/telecharger', '0.8'], ['/contact', '0.4'], ['/regles', '0.3'],
     ['/conditions', '0.2'], ['/confidentialite', '0.2'],
   ];
@@ -112,6 +112,11 @@ app.use(
     setHeaders(res, filePath) {
       if (filePath.endsWith('sw.js') || filePath.endsWith('manifest.webmanifest')) {
         res.setHeader('Cache-Control', 'no-cache');
+      }
+      /* Vidéos : lecture en continu, donc cache court et requêtes Range. */
+      if (filePath.endsWith('.mp4')) {
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        res.setHeader('Accept-Ranges', 'bytes');
       }
     },
   }),
@@ -168,7 +173,7 @@ const HAS_EXTENSION = /\/[^/]+\.[a-z0-9]{2,5}$/i;
 /* Routes réelles de l'application. Tout le reste doit répondre 404 : sinon
    Google indexe des adresses inexistantes comme de vraies pages (soft 404). */
 const SPA_PAGES = new Set([
-  '/', '/bibliotheque', '/auteurs', '/a-propos', '/telecharger', '/installer',
+  '/', '/bibliotheque', '/videos', '/auteurs', '/a-propos', '/telecharger', '/installer',
   '/compte', '/connexion', '/inscription', '/contact', '/regles', '/ecrire',
   '/conditions', '/confidentialite', '/console',
 ]);

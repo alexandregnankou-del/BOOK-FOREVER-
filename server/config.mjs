@@ -62,8 +62,8 @@ fs.mkdirSync(path.join(uploadsDir, 'covers'), { recursive: true });
 /* Version affichée par /api/health et par le pied de page : un seul endroit à
    changer pour éviter les libellés contradictoires (l'ancienne page /installer
    annonçait encore « version 20 »). */
-export const APP_VERSION = '1.51.5';
-export const APP_RELEASE = 'v51.5';
+export const APP_VERSION = '1.52.0';
+export const APP_RELEASE = 'v52';
 
 /* En production, on refuse de démarrer avec les valeurs de secours : un secret
    JWT par défaut permettrait de forger un jeton administrateur. */
