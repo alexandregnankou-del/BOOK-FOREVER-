@@ -5,11 +5,36 @@ import { queueOrder, isNetworkFailure } from '../offline.js';
 import { useSession } from '../session.jsx';
 import { useSite } from '../site.jsx';
 
+/* Les manuscrits sont arrivés avec des retours à la ligne de mise en page et des
+   doubles espaces de justification. Sans ce traitement, chaque ligne devient un
+   paragraphe et la lecture est hachée toutes les dix mots. On recolle les lignes,
+   on rétablit les paragraphes sur la ponctuation, on garde le dialogue intact. */
 function paragraphs(text) {
-  return String(text || '')
-    .split(/\n{1,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const clean = (value) => value.replace(/[ \t\u00A0]+/g, ' ').trim();
+  const blocks = [];
+
+  for (const chunk of String(text || '').replace(/\r\n/g, '\n').split(/\n\s*\n/)) {
+    let current = '';
+    for (const rawLine of chunk.split('\n')) {
+      const line = clean(rawLine);
+      if (!line) continue;
+      if (!current) {
+        current = line;
+        continue;
+      }
+      const dialogue = /^[—–]/.test(line);
+      const endsSentence = /[.!?…»”"]$/.test(current);
+      const startsUpper = /^[A-ZÀ-ÖØ-Þ«"“(]/.test(line);
+      if (dialogue || (endsSentence && startsUpper && current.length > 80)) {
+        blocks.push(current);
+        current = line;
+      } else {
+        current += ` ${line}`;
+      }
+    }
+    if (current) blocks.push(current);
+  }
+  return blocks;
 }
 
 const PREFS_KEY = 'bf.reader.prefs';

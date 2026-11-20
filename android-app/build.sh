@@ -51,7 +51,7 @@ echo "2/6 link…"
   --min-sdk-version 24 \
   --target-sdk-version 34 \
   --version-code 56 \
-  --version-name 51.2 \
+  --version-name 51.2.2 \
   --auto-add-overlay
 
 echo "3/6 javac…"

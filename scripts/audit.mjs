@@ -74,6 +74,17 @@ try {
   for (const route of routes) {
     current = route;
     await page.goto(base + route, { waitUntil: 'networkidle', timeout: 60000 }).catch((e) => problems.push(`[nav] ${route} : ${e.message.slice(0, 80)}`));
+    /* Les images en chargement différé ne sont pas encore décodées : on parcourt
+       la page avant de mesurer, sinon on signale des images saines comme cassées. */
+    await page.evaluate(async () => {
+      const step = window.innerHeight;
+      for (let y = 0; y < document.body.scrollHeight; y += step) {
+        window.scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 90));
+      }
+      window.scrollTo(0, 0);
+    });
+    await page.waitForLoadState('networkidle').catch(() => {});
     await sleep(350);
 
     const info = await page.evaluate(() => {
