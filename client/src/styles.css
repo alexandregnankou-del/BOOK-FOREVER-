@@ -2754,6 +2754,18 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   display: flex;
   flex-direction: column;
 }
+/* Sur grand écran, les cinq clips tiennent en une rangée : plus de défilement
+   à la souris, et aucune carte coupée sur le bord. */
+@media (min-width: 1000px) {
+  .video-rail {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow: visible;
+  }
+  .video-card {
+    width: auto;
+  }
+}
 .video-frame {
   position: relative;
   aspect-ratio: 9 / 16;
