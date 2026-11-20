@@ -234,6 +234,18 @@ select {
   color: #1b1509;
 }
 
+/* Bouton WhatsApp : la couleur officielle rend l'action évidente au premier regard. */
+.btn-whatsapp {
+  background: #1faa54;
+  border-color: #1faa54;
+  color: #fff;
+}
+
+.btn-whatsapp:hover {
+  background: #178f46;
+  border-color: #178f46;
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--ink);
@@ -316,7 +328,19 @@ select {
   color: #1b1509;
 }
 
-.hero-actions .btn-ghost {
+.hero-actions /* Bouton WhatsApp : la couleur officielle rend l'action évidente au premier regard. */
+.btn-whatsapp {
+  background: #1faa54;
+  border-color: #1faa54;
+  color: #fff;
+}
+
+.btn-whatsapp:hover {
+  background: #178f46;
+  border-color: #178f46;
+}
+
+.btn-ghost {
   background: transparent;
   color: #f3e9d8;
   border-color: rgba(243, 233, 216, 0.32);

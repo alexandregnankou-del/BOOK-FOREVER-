@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, formatDate, formatXof, METHOD_LABELS, STATUS_LABELS } from '../api.js';
+import { api, formatDate, formatXof, METHOD_LABELS, STATUS_LABELS, whatsappHref } from '../api.js';
 import { useSession } from '../session.jsx';
+import { useSite } from '../site.jsx';
 
 export default function Account() {
   const { user, ready, logout } = useSession();
+  const site = useSite();
   const navigate = useNavigate();
   const [tab, setTab] = useState('lectures');
   const [purchases, setPurchases] = useState([]);
@@ -233,6 +235,24 @@ export default function Account() {
                       className="btn btn-gold btn-sm"
                     >
                       Ouvrir la page Wave
+                    </a>
+                  </p>
+                )}
+                {whatsappHref(
+                  site.contactPhone,
+                  `Bonjour, je viens de payer un pack de chapitres. Référence : ${packOrder.instructions.reference}`,
+                ) && (
+                  <p style={{ marginTop: 10 }}>
+                    <a
+                      className="btn btn-whatsapp btn-sm"
+                      href={whatsappHref(
+                        site.contactPhone,
+                        `Bonjour, je viens de payer un pack de chapitres. Référence : ${packOrder.instructions.reference}`,
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Envoyer la référence sur WhatsApp
                     </a>
                   </p>
                 )}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, formatXof } from '../api.js';
+import { api, formatXof, whatsappHref } from '../api.js';
 import { queueOrder, isNetworkFailure } from '../offline.js';
 import { useSession } from '../session.jsx';
 import { useSite } from '../site.jsx';
@@ -341,6 +341,12 @@ export default function Reader() {
     const chapter = payload.chapter;
     const waveOn = payload.paywall.methods.find((m) => m.id === 'wave_link')?.enabled;
     const orangeOn = payload.paywall.methods.find((m) => m.id === 'orange_money_direct')?.enabled;
+    const waLink = order
+      ? whatsappHref(
+          site.contactPhone,
+          `Bonjour, je viens de payer ${formatXof(order.instructions.amountXof)} pour « ${book.title} », chapitre ${chapter.number}. Référence : ${order.instructions.reference}`,
+        )
+      : null;
 
     return (
       <div className="reader">
@@ -447,6 +453,13 @@ export default function Reader() {
                 {order.instructions.number && (
                   <p style={{ marginTop: 12 }}>
                     Numéro marchand : <strong>{order.instructions.number}</strong>
+                  </p>
+                )}
+                {waLink && (
+                  <p style={{ marginTop: 12 }}>
+                    <a className="btn btn-whatsapp btn-sm" href={waLink} target="_blank" rel="noreferrer">
+                      Envoyer la référence sur WhatsApp
+                    </a>
                   </p>
                 )}
                 <p className="muted" style={{ fontSize: '0.8rem' }}>

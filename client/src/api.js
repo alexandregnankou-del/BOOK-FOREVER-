@@ -139,3 +139,11 @@ export const STATUS_LABELS = {
   rejected: 'Refusé',
   refunded: 'Remboursé',
 };
+
+/* Lien WhatsApp avec message pré-rempli : le lecteur n'a pas à recopier sa
+   référence de paiement, première cause de validation retardée. */
+export function whatsappHref(phone, text) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return null;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}
