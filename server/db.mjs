@@ -274,6 +274,10 @@ export const DEFAULT_SETTINGS = {
   accessDays: '30',
   referralTarget: '3',
   referralReward: '1',
+  /* Mise en avant éditoriale : un chapitre choisi s'affiche en haut de l'accueil. */
+  spotlightBook: '',
+  spotlightChapter: '',
+  spotlightUntil: '',
 };
 
 export function seedSettings() {
@@ -291,6 +295,35 @@ export function getSettings() {
   return out;
 }
 
+/** Chapitre mis en avant, uniquement s'il est réellement en ligne et non expiré. */
+function spotlightFor(settings) {
+  const slug = String(settings.spotlightBook || '').trim();
+  const number = Number(settings.spotlightChapter || 0);
+  if (!slug || !Number.isInteger(number) || number < 1) return null;
+  const until = String(settings.spotlightUntil || '').trim();
+  if (until && until < new Date().toISOString().slice(0, 10)) return null;
+  const row = db
+    .prepare(
+      `SELECT b.slug, b.title, b.author, b.cover, b.price_xof,
+              c.number, c.title AS chapter_title, c.is_free
+         FROM books b JOIN chapters c ON c.book_id = b.id
+        WHERE b.slug = ? AND c.number = ? AND b.status = 'published' AND c.status = 'published'`,
+    )
+    .get(slug, number);
+  if (!row) return null;
+  return {
+    bookSlug: row.slug,
+    bookTitle: row.title,
+    author: row.author,
+    cover: row.cover,
+    chapter: row.number,
+    chapterTitle: row.chapter_title,
+    isFree: Boolean(row.is_free),
+    priceXof: row.price_xof,
+    until,
+  };
+}
+
 export function publicSite() {
   const s = getSettings();
   return {
@@ -299,6 +332,7 @@ export function publicSite() {
     contactEmail: s.contactEmail,
     contactPhone: s.contactPhone,
     channelUrl: s.channelUrl || config.defaults.channelUrl,
+    spotlight: spotlightFor(s),
     waveLink: s.waveLink,
     orangeNumber: s.orangeNumber,
     priceXof: Number(s.priceXof),

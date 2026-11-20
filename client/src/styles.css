@@ -2584,9 +2584,13 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   color: var(--gold);
   font-size: 0.82rem;
   font-weight: 600;
+  font-family: inherit;
   text-decoration: none;
+  background: transparent;
+  border: 0;
   border-bottom: 1px solid rgba(185, 139, 46, 0.4);
-  padding-bottom: 1px;
+  padding: 0 0 1px;
+  cursor: pointer;
 }
 .promo-link:hover,
 .promo-link:focus-visible {
@@ -2656,5 +2660,71 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
     font-size: 0.76rem;
     color: var(--ink-soft);
     white-space: nowrap;
+  }
+}
+
+/* ---------- Sortie du jour ---------- */
+.spotlight-section {
+  padding-top: 18px;
+  padding-bottom: 4px;
+}
+.spotlight {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(120deg, rgba(185, 139, 46, 0.16), rgba(185, 139, 46, 0.04));
+  border: 1px solid rgba(185, 139, 46, 0.35);
+}
+.spotlight-cover img {
+  width: 84px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  display: block;
+}
+.spotlight-body {
+  min-width: 0;
+}
+.spotlight-tag {
+  display: inline-block;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.spotlight-body h2 {
+  font-family: var(--serif, Georgia, serif);
+  font-size: 1.28rem;
+  margin: 0 0 4px;
+  line-height: 1.2;
+}
+.spotlight-book {
+  margin: 0 0 8px;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+.spotlight-line {
+  margin: 0 0 12px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  opacity: 0.8;
+}
+@media (max-width: 520px) {
+  .spotlight {
+    gap: 12px;
+    padding: 12px;
+  }
+  .spotlight-cover img {
+    width: 68px;
+  }
+  .spotlight-body h2 {
+    font-size: 1.1rem;
   }
 }

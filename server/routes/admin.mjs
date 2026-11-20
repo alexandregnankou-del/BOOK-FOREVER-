@@ -445,7 +445,8 @@ adminRoutes.patch('/settings', (req, res) => {
   const allowed = ['siteName', 'siteTagline', 'contactEmail', 'contactPhone', 'waveLink', 'orangeNumber',
     'priceXof', 'freeChapters', 'address', 'publisher', 'waveEnabled', 'orangeEnabled', 'supportHours',
     'monthlyPrice', 'monthlyDays', 'passPrice', 'passDays', 'packPrice', 'packCredits', 'accessDays',
-    'referralTarget', 'referralReward', 'channelUrl'];
+    'referralTarget', 'referralReward', 'channelUrl',
+    'spotlightBook', 'spotlightChapter', 'spotlightUntil'];
   const upsert = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
   const tx = db.transaction(() => {
     for (const key of allowed) {

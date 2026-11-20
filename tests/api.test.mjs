@@ -473,3 +473,44 @@ test('partage : deux visiteurs différents comptent, un même visiteur non', asy
   });
   assert.equal(other.json.counted, true, 'un autre visiteur compte comme un partage de plus');
 });
+
+test('sortie du jour : visible quand le chapitre existe, retirée après expiration', async () => {
+  await admin('/api/auth/login', { method: 'POST', body: { email: 'admin@test.ci', password: 'Adisen2026!' } });
+
+  const set = await admin('/api/admin/settings', {
+    method: 'PATCH',
+    body: { spotlightBook: 'light-in-the-dark', spotlightChapter: '1', spotlightUntil: '' },
+  });
+  assert.equal(set.status, 200);
+
+  let site = await anon('/api/site');
+  assert.ok(site.json.spotlight, 'l’encart doit être exposé');
+  assert.equal(site.json.spotlight.chapter, 1);
+  assert.equal(site.json.spotlight.isFree, true);
+
+  /* Un chapitre verrouillé reste proposé, mais signalé comme payant. */
+  await admin('/api/admin/settings', { method: 'PATCH', body: { spotlightChapter: '5' } });
+  site = await anon('/api/site');
+  assert.equal(site.json.spotlight.isFree, false);
+
+  /* Date dépassée : l'encart disparaît sans intervention. */
+  await admin('/api/admin/settings', { method: 'PATCH', body: { spotlightUntil: '2020-01-01' } });
+  site = await anon('/api/site');
+  assert.equal(site.json.spotlight, null, 'un encart expiré ne doit plus s’afficher');
+
+  /* Nettoyage : on retire la mise en avant pour les tests suivants. */
+  await admin('/api/admin/settings', {
+    method: 'PATCH',
+    body: { spotlightBook: '', spotlightChapter: '', spotlightUntil: '' },
+  });
+  site = await anon('/api/site');
+  assert.equal(site.json.spotlight, null);
+});
+
+test('sortie du jour : un chapitre inexistant ne casse rien', async () => {
+  await admin('/api/auth/login', { method: 'POST', body: { email: 'admin@test.ci', password: 'Adisen2026!' } });
+  await admin('/api/admin/settings', { method: 'PATCH', body: { spotlightBook: 'light-in-the-dark', spotlightChapter: '999' } });
+  const site = await anon('/api/site');
+  assert.equal(site.json.spotlight, null);
+  await admin('/api/admin/settings', { method: 'PATCH', body: { spotlightBook: '', spotlightChapter: '' } });
+});

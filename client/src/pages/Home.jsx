@@ -5,6 +5,7 @@ import { useSite } from '../site.jsx';
 import { useSession } from '../session.jsx';
 import BookCard from '../components/BookCard.jsx';
 import PromoRail from '../components/PromoRail.jsx';
+import Spotlight from '../components/Spotlight.jsx';
 
 export default function Home() {
   const site = useSite();
@@ -36,6 +37,8 @@ export default function Home() {
 
   return (
     <>
+      <Spotlight spotlight={site.spotlight} />
+
       <section className="hero">
         <div className="wrap">
           <div>

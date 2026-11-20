@@ -22,6 +22,8 @@ const FALLBACK = {
     pack: { priceXof: 1200, credits: 5 },
     referral: { target: 3, reward: 1 },
   },
+  channelUrl: '',
+  spotlight: null,
 };
 
 const SiteContext = createContext(FALLBACK);
@@ -29,18 +31,23 @@ const SiteContext = createContext(FALLBACK);
 export function SiteProvider({ children }) {
   const [site, setSite] = useState(FALLBACK);
 
-  useEffect(() => {
+  /* La console peut changer la mise en avant : on puise à nouveau la
+     configuration sans recharger la page. */
+  const refreshSite = () =>
     api
       .site()
       .then((data) => setSite({ ...FALLBACK, ...data }))
       .catch(() => {});
+
+  useEffect(() => {
+    refreshSite();
   }, []);
 
   useEffect(() => {
     if (site.siteName) document.title = `${site.siteName} — Lire autrement, chapitre après chapitre`;
   }, [site.siteName]);
 
-  return <SiteContext.Provider value={site}>{children}</SiteContext.Provider>;
+  return <SiteContext.Provider value={{ ...site, refreshSite }}>{children}</SiteContext.Provider>;
 }
 
 export function useSite() {

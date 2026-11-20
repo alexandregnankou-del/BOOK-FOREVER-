@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { useSite } from '../site.jsx';
 
 const FIELDS = [
   ['siteName', 'Nom du site'],
@@ -17,6 +18,18 @@ export default function Settings() {
   const [providers, setProviders] = useState({});
   const [notice, setNotice] = useState({ type: '', message: '' });
   const [busy, setBusy] = useState(false);
+  const site = useSite();
+  const [books, setBooks] = useState([]);
+  const [chapters, setChapters] = useState([]);
+  const [spotBusy, setSpotBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api.admin
+      .books()
+      .then((data) => setBooks(data.books || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.admin
@@ -28,7 +41,63 @@ export default function Settings() {
       .catch((err) => setNotice({ type: 'error', message: err.message }));
   }, []);
 
+  const spotlightBook = books.find((b) => b.slug === settings?.spotlightBook);
+
+  useEffect(() => {
+    if (!spotlightBook) {
+      setChapters([]);
+      return;
+    }
+    api.admin
+      .chapters(spotlightBook.id)
+      .then((data) => setChapters(data.chapters || []))
+      .catch(() => setChapters([]));
+  }, [spotlightBook?.id]);
+
   if (!settings) return <p className="muted">Chargement…</p>;
+
+  /* Mise en avant : seuls ces trois champs partent, les autres réglages ne
+     bougent pas. */
+  const saveSpotlight = async (event) => {
+    event.preventDefault();
+    setSpotBusy(true);
+    try {
+      await api.admin.saveSettings({
+        spotlightBook: settings.spotlightBook || '',
+        spotlightChapter: settings.spotlightChapter || '',
+        spotlightUntil: settings.spotlightUntil || '',
+      });
+      await site.refreshSite?.();
+      setNotice({ type: 'ok', message: 'Mise en avant enregistrée : elle est visible en haut de l’accueil.' });
+    } catch (err) {
+      setNotice({ type: 'error', message: err.message });
+    } finally {
+      setSpotBusy(false);
+    }
+  };
+
+  const announcement = () => {
+    const chapter = chapters.find((c) => String(c.number) === String(settings.spotlightChapter));
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const url = `${origin}/roman/${settings.spotlightBook}`;
+    return [
+      `Nouveau chapitre : « ${chapter?.title || 'à découvrir'} » — ${spotlightBook?.title || ''} (chapitre ${settings.spotlightChapter}).`,
+      url,
+      settings.channelUrl ? `Les nouveautés sortent d’abord sur la chaîne WhatsApp : ${settings.channelUrl}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  const copyAnnouncement = async () => {
+    try {
+      await navigator.clipboard.writeText(announcement());
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      setNotice({ type: 'error', message: 'Copie impossible depuis ce navigateur.' });
+    }
+  };
 
   const save = async (event) => {
     event.preventDefault();
@@ -242,6 +311,79 @@ export default function Settings() {
         <button type="submit" className="btn btn-gold" disabled={busy} style={{ marginTop: 12 }}>
           {busy ? 'Enregistrement…' : 'Enregistrer les réglages'}
         </button>
+      </form>
+
+      <form className="panel" style={{ marginTop: 16 }} onSubmit={saveSpotlight}>
+        <h2 style={{ fontSize: '1.1rem', marginBottom: 6 }}>Sortie du jour — accueil</h2>
+        <p className="hint" style={{ marginTop: 0, marginBottom: 12 }}>
+          Le chapitre choisi s’affiche tout en haut de l’accueil, avec la couverture du roman. Laissez vide pour
+          retirer l’encart. La date limite est facultative : l’encart disparaît tout seul après.
+        </p>
+        <div className="split">
+          <div className="field">
+            <label>Roman</label>
+            <select
+              value={settings.spotlightBook || ''}
+              onChange={(e) => setSettings({ ...settings, spotlightBook: e.target.value, spotlightChapter: '' })}
+            >
+              <option value="">— Aucune mise en avant —</option>
+              {books.map((book) => (
+                <option key={book.id} value={book.slug}>
+                  {book.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Chapitre</label>
+            <select
+              value={settings.spotlightChapter || ''}
+              onChange={(e) => setSettings({ ...settings, spotlightChapter: e.target.value })}
+              disabled={!spotlightBook}
+            >
+              <option value="">— Choisir —</option>
+              {chapters.map((chapter) => (
+                <option key={chapter.number} value={chapter.number}>
+                  {chapter.number}. {chapter.title}
+                  {chapter.isFree ? ' (offert)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Visible jusqu’au (facultatif)</label>
+            <input
+              type="date"
+              value={settings.spotlightUntil || ''}
+              onChange={(e) => setSettings({ ...settings, spotlightUntil: e.target.value })}
+            />
+          </div>
+        </div>
+        {settings.spotlightBook && (
+          <div className="field">
+            <label>Annonce prête à coller dans la chaîne WhatsApp</label>
+            <textarea readOnly rows={4} value={announcement()} />
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+          <button type="submit" className="btn btn-gold btn-sm" disabled={spotBusy}>
+            {spotBusy ? 'Enregistrement…' : 'Enregistrer la mise en avant'}
+          </button>
+          {settings.spotlightBook && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={copyAnnouncement}>
+              {copied ? 'Annonce copiée' : 'Copier l’annonce'}
+            </button>
+          )}
+          {(settings.spotlightBook || settings.spotlightChapter) && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setSettings({ ...settings, spotlightBook: '', spotlightChapter: '', spotlightUntil: '' })}
+            >
+              Retirer l’encart
+            </button>
+          )}
+        </div>
       </form>
 
       <div className="panel" style={{ marginTop: 16 }}>
