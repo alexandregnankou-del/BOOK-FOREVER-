@@ -78,6 +78,11 @@ export default function Layout() {
                 <Link to="/bibliotheque">Tous les romans</Link>
                 <Link to="/telecharger">Télécharger l’application</Link>
                 <Link to="/installer">Installer en 3 touches</Link>
+                {site.channelUrl && (
+                  <a href={site.channelUrl} target="_blank" rel="noreferrer">
+                    Chaîne WhatsApp
+                  </a>
+                )}
                 <Link to="/compte">Mes achats</Link>
                 <Link to="/contact">Assistance</Link>
                 <Link to="/a-propos">À propos</Link>

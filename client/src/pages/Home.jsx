@@ -4,6 +4,7 @@ import { api, formatXof } from '../api.js';
 import { useSite } from '../site.jsx';
 import { useSession } from '../session.jsx';
 import BookCard from '../components/BookCard.jsx';
+import PromoRail from '../components/PromoRail.jsx';
 
 export default function Home() {
   const site = useSite();
@@ -70,6 +71,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {books.length > 0 && <PromoRail books={books} channelUrl={site.channelUrl || ''} />}
 
       {resume && (
         <section className="section resume-section">

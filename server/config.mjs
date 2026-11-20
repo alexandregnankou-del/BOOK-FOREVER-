@@ -62,8 +62,8 @@ fs.mkdirSync(path.join(uploadsDir, 'covers'), { recursive: true });
 /* Version affichée par /api/health et par le pied de page : un seul endroit à
    changer pour éviter les libellés contradictoires (l'ancienne page /installer
    annonçait encore « version 20 »). */
-export const APP_VERSION = '1.51.1';
-export const APP_RELEASE = 'v51.1';
+export const APP_VERSION = '1.51.2';
+export const APP_RELEASE = 'v51.2';
 
 /* En production, on refuse de démarrer avec les valeurs de secours : un secret
    JWT par défaut permettrait de forger un jeton administrateur. */
@@ -97,6 +97,7 @@ export const config = {
     contactPhone: process.env.CONTACT_PHONE || '+225 0703025007',
     waveLink: process.env.WAVE_LINK || 'https://pay.wave.com/m/M_ci_WwpCpr9rnJw1/c/ci/',
     orangeNumber: process.env.ORANGE_NUMBER || '0706486904',
+    channelUrl: process.env.WHATSAPP_CHANNEL || 'https://whatsapp.com/channel/0029VbDDuHM5Ejy5yt0ylo1j',
     priceXof: Number(process.env.PRICE_XOF || 300),
     freeChapters: Number(process.env.FREE_CHAPTERS || 2),
   },

@@ -6,6 +6,7 @@ const FIELDS = [
   ['siteTagline', 'Signature'],
   ['contactEmail', 'E-mail public (CGU, contact, pied de page)'],
   ['contactPhone', 'Téléphone / WhatsApp public'],
+  ['channelUrl', 'Chaîne WhatsApp (lien d’invitation)'],
   ['publisher', 'Éditeur'],
   ['address', 'Adresse'],
   ['supportHours', 'Horaires de réponse'],
