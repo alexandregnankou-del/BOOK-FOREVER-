@@ -388,39 +388,78 @@ export default function Reader() {
 
         <div className="paywall">
           <div className="paywall-card">
-            <span className="eyebrow">Chapitre {chapter.number}</span>
-            <h1>{payload.paywall.title}</h1>
+            <span className="eyebrow">Commande & Déblocage</span>
+            <h1>{chapter.title}</h1>
             <p className="muted">
-              {chapter.title} — {formatXof(chapter.priceXof)}. Déblocage définitif sur votre compte, à relire
-              autant de fois que vous voulez.
+              {book.title} — Chapitre {chapter.number}
             </p>
 
             {!order ? (
               <>
-                <div className="methods">
-                  <button
-                    type="button"
-                    className={`method ${method === 'wave_link' ? 'selected' : ''}`}
-                    onClick={() => setMethod('wave_link')}
-                    disabled={!waveOn}
-                  >
-                    <strong>Wave</strong>
-                    <span>{waveOn ? 'Lien marchand ADISEN HOUSE' : 'Indisponible'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`method ${method === 'orange_money_direct' ? 'selected' : ''}`}
-                    onClick={() => setMethod('orange_money_direct')}
-                    disabled={!orangeOn}
-                  >
-                    <strong>Orange Money</strong>
-                    <span>{orangeOn ? site.orangeNumber : 'Indisponible'}</span>
+                {/* APERÇU DU PANIER / RÉCAPITULATIF DE COMMANDE (Loi 2013-546 & 2016-412) */}
+                <div className="order-summary-card">
+                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gold, #c9a227)', textTransform: 'uppercase', marginBottom: 8 }}>
+                    Aperçu de votre commande
+                  </div>
+                  <div className="order-summary-row">
+                    <span>Ouvrage & Chapitre</span>
+                    <strong>{book.title} (Ch. {chapter.number})</strong>
+                  </div>
+                  <div className="order-summary-row">
+                    <span>Prix unitaire</span>
+                    <span>{formatXof(chapter.priceXof)}</span>
+                  </div>
+                  <div className="order-summary-row">
+                    <span>Durée de lecture</span>
+                    <span style={{ color: '#10b981', fontWeight: 600 }}>Accès temporaire : 30 jours</span>
+                  </div>
+                  <div className="order-summary-row">
+                    <span>Frais supplémentaires</span>
+                    <span>0 FCFA</span>
+                  </div>
+                  <div className="order-summary-row total">
+                    <span>Total à payer</span>
+                    <span>{formatXof(chapter.priceXof)}</span>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 16 }}>
+                  <label style={{ display: 'block', fontSize: '0.86rem', color: '#ded7cd', marginBottom: 8, fontWeight: 600 }}>
+                    1. Choisissez votre moyen de paiement :
+                  </label>
+                  <div className="methods">
+                    <button
+                      type="button"
+                      className={`method ${method === 'wave_link' ? 'selected' : ''}`}
+                      onClick={() => setMethod('wave_link')}
+                      disabled={!waveOn}
+                    >
+                      <strong>Wave</strong>
+                      <span>{waveOn ? 'Lien marchand direct' : 'Indisponible'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`method ${method === 'orange_money_direct' ? 'selected' : ''}`}
+                      onClick={() => setMethod('orange_money_direct')}
+                      disabled={!orangeOn}
+                    >
+                      <strong>Orange Money</strong>
+                      <span>{orangeOn ? site.orangeNumber : 'Indisponible'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {notice && <div className="alert error" style={{ marginTop: 12 }}>{notice}</div>}
+
+                <div style={{ marginTop: 16 }}>
+                  <p className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.45, marginBottom: 12 }}>
+                    En validant, vous recevrez un <strong>accusé de réception électronique</strong> avec votre référence unique,
+                    puis un <strong>reçu officiel téléchargeable</strong> dès confirmation du paiement.
+                  </p>
+                  <button type="button" className="btn btn-gold btn-block" onClick={startPurchase} disabled={busy}>
+                    {busy ? 'Préparation…' : user ? `Confirmer la commande (${formatXof(chapter.priceXof)})` : 'Se connecter pour commander'}
                   </button>
                 </div>
-                {notice && <div className="alert error">{notice}</div>}
-                <button type="button" className="btn btn-gold btn-block" onClick={startPurchase} disabled={busy}>
-                  {busy ? 'Préparation…' : user ? `Débloquer pour ${formatXof(chapter.priceXof)}` : 'Se connecter pour débloquer'}
-                </button>
 
                 {user && (payload.paywall.credits || 0) > 0 && (
                   <button
@@ -435,9 +474,9 @@ export default function Reader() {
                   </button>
                 )}
 
-                <p className="muted" style={{ fontSize: '0.78rem', marginTop: 12 }}>
-                  Aucun prélèvement automatique. Le chapitre s’ouvre après vérification du paiement (moins de 30
-                  min en journée), puis reste accessible {payload.paywall.accessDays || 30} jours.
+                <p className="muted" style={{ fontSize: '0.78rem', marginTop: 14, textAlign: 'center' }}>
+                  Conforme aux <Link to="/cgv" target="_blank">Conditions Générales de Vente</Link> et aux{' '}
+                  <Link to="/mentions-legales" target="_blank">Mentions Légales</Link>.
                 </p>
 
                 {payload.paywall.offers && (
@@ -460,9 +499,15 @@ export default function Reader() {
               </>
             ) : (
               <div className="instructions">
-                <strong>Référence à indiquer :</strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gold, #c9a227)', marginBottom: 8 }}>
+                  <span style={{ fontSize: '1.2rem' }}>📋</span>
+                  <strong>Accusé de réception de commande</strong>
+                </div>
+                <p className="muted" style={{ fontSize: '0.85rem', margin: '0 0 10px' }}>
+                  Votre commande a bien été enregistrée. Effectuez votre règlement avec les instructions ci-dessous :
+                </p>
                 <div className="reference">{order.instructions.reference}</div>
-                {order.reused && <p className="muted">Vous aviez déjà une demande en cours pour ce chapitre.</p>}
+                {order.reused && <p className="muted">Vous aviez déjà une commande en attente pour ce chapitre.</p>}
                 <ol>
                   {order.instructions.steps.map((step, i) => (
                     <li key={i}>{step}</li>
@@ -487,9 +532,14 @@ export default function Reader() {
                     </a>
                   </p>
                 )}
-                <p className="muted" style={{ fontSize: '0.8rem' }}>
-                  Gardez cette référence : elle relie votre paiement à votre compte. Votre demande apparaît aussi
-                  dans <Link to="/compte">Mon compte → Achats</Link>.
+                <p className="muted" style={{ fontSize: '0.8rem', marginTop: 14 }}>
+                  💡 Dès validation serveur, votre reçu électronique officiel sera disponible dans{' '}
+                  <Link to="/compte">Mon compte → Mes reçus</Link> et le chapitre s'ouvrira immédiatement.
+                </p>
+                <p style={{ marginTop: 10, textAlign: 'center' }}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOrder(null)}>
+                    ← Modifier ou corriger la commande
+                  </button>
                 </p>
               </div>
             )}

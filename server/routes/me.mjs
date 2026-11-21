@@ -10,6 +10,9 @@ import {
   creditChapterIds,
   spendCredit,
   referralSummary,
+  listUserReceipts,
+  createClaim,
+  listUserClaims,
 } from '../db.mjs';
 import { requireAuth } from '../auth.mjs';
 
@@ -578,3 +581,129 @@ meRoutes.get('/audience', (req, res) => {
     },
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/*                     Phase 6 : Reçus et Réclamations                        */
+/* -------------------------------------------------------------------------- */
+
+meRoutes.get('/receipts', (req, res) => {
+  const status = String(req.query.status || '');
+  const search = String(req.query.search || '');
+  const receipts = listUserReceipts(req.user.id, status, search);
+  
+  // Met à jour dynamiquement le statut si la date d'expiration est dépassée
+  const today = new Date().toISOString().slice(0, 10);
+  const mapped = receipts.map((r) => {
+    const isExpired = r.status === 'confirmed' && r.expires_at && r.expires_at < today;
+    return {
+      id: r.id,
+      receiptNumber: r.receipt_number,
+      orderId: r.order_id,
+      reference: r.reference,
+      bookTitle: r.book_title,
+      bookSlug: r.book_slug,
+      chapterNumber: r.chapter_number,
+      chapterTitle: r.chapter_title,
+      amountXof: r.amount_xof,
+      currency: r.currency,
+      paymentMethod: r.payment_method,
+      status: isExpired ? 'expired' : r.status,
+      accessType: r.access_type,
+      confirmedAt: r.confirmed_at,
+      accessStartsAt: r.access_starts_at,
+      expiresAt: r.expires_at,
+      createdAt: r.created_at,
+    };
+  });
+
+  res.json({ receipts: mapped });
+});
+
+meRoutes.get('/receipts/:id', (req, res) => {
+  const row = db.prepare('SELECT * FROM receipts WHERE id = ? AND user_id = ?').get(Number(req.params.id), req.user.id);
+  if (!row) return res.status(404).json({ error: 'Reçu introuvable.' });
+  const today = new Date().toISOString().slice(0, 10);
+  const isExpired = row.status === 'confirmed' && row.expires_at && row.expires_at < today;
+  
+  res.json({
+    receipt: {
+      id: row.id,
+      receiptNumber: row.receipt_number,
+      orderId: row.order_id,
+      reference: row.reference,
+      bookTitle: row.book_title,
+      bookSlug: row.book_slug,
+      chapterNumber: row.chapter_number,
+      chapterTitle: row.chapter_title,
+      amountXof: row.amount_xof,
+      currency: row.currency,
+      paymentMethod: row.payment_method,
+      status: isExpired ? 'expired' : row.status,
+      accessType: row.access_type,
+      confirmedAt: row.confirmed_at,
+      accessStartsAt: row.access_starts_at,
+      expiresAt: row.expires_at,
+      createdAt: row.created_at,
+      vendor: {
+        name: getSettings().publisher || 'ADISEN — section Littérature',
+        address: getSettings().address || 'Abidjan, Côte d’Ivoire',
+        email: getSettings().contactEmail,
+        phone: getSettings().contactPhone,
+      },
+    },
+  });
+});
+
+meRoutes.get('/claims', (req, res) => {
+  const claims = listUserClaims(req.user.id);
+  res.json({
+    claims: claims.map((c) => ({
+      id: c.id,
+      claimNumber: c.claim_number,
+      category: c.category,
+      orderReference: c.order_reference,
+      subject: c.subject,
+      message: c.message,
+      status: c.status,
+      adminReply: c.admin_reply,
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+      resolvedAt: c.resolved_at,
+    })),
+  });
+});
+
+meRoutes.post('/claims', (req, res) => {
+  const category = String(req.body?.category || '').trim();
+  const message = String(req.body?.message || '').trim();
+  const orderReference = String(req.body?.orderReference || '').trim();
+  const subject = String(req.body?.subject || '').trim();
+
+  if (!category) return res.status(400).json({ error: 'La catégorie de réclamation est requise.' });
+  if (!message || message.length < 10) {
+    return res.status(400).json({ error: 'Veuillez décrire votre problème (minimum 10 caractères).' });
+  }
+
+  const claim = createClaim({
+    userId: req.user.id,
+    category,
+    orderReference,
+    subject,
+    message,
+  });
+
+  res.status(201).json({
+    message: `Réclamation enregistrée sous le dossier ${claim.claim_number}. Notre service client vous répondra rapidement.`,
+    claim: {
+      id: claim.id,
+      claimNumber: claim.claim_number,
+      category: claim.category,
+      orderReference: claim.order_reference,
+      subject: claim.subject,
+      message: claim.message,
+      status: claim.status,
+      createdAt: claim.created_at,
+    },
+  });
+});
+

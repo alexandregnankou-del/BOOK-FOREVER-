@@ -2916,3 +2916,163 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* ---------- Phase 6 : Reçus électroniques & Modal ---------- */
+.receipt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.receipt-dialog {
+  background: #fff;
+  color: #14110e;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+.receipt-dialog-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  background: #f8f5ee;
+  border-bottom: 1px solid #e2d8c8;
+}
+.receipt-document {
+  padding: 28px 24px;
+  font-family: var(--font-body, system-ui, sans-serif);
+  line-height: 1.45;
+}
+.receipt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.receipt-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.receipt-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.88rem;
+}
+.receipt-table th {
+  text-align: left;
+  padding: 6px 10px;
+  background: #fdfbf7;
+  color: #666;
+  font-weight: 500;
+  width: 25%;
+  border-bottom: 1px solid #eee;
+}
+.receipt-table td {
+  padding: 6px 10px;
+  color: #14110e;
+  border-bottom: 1px solid #eee;
+}
+.receipt-item-box {
+  border: 1px solid #e2d8c8;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 18px 0;
+}
+.receipt-item-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  padding: 10px 14px;
+  align-items: center;
+}
+.receipt-item-row.header {
+  background: #f8f5ee;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2d8c8;
+}
+.receipt-item-row.body {
+  border-bottom: 1px solid #f0eae1;
+}
+.receipt-item-row.total {
+  background: #fdfbf7;
+  font-weight: 600;
+}
+.receipt-footer {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid #eee;
+  font-size: 0.78rem;
+  color: #666;
+  text-align: center;
+}
+
+/* Récapitulatif de panier / commande */
+.order-summary-card {
+  background: rgba(20, 17, 14, 0.95);
+  border: 1px solid var(--gold, #c9a227);
+  border-radius: 10px;
+  padding: 20px;
+  margin: 16px 0;
+}
+.order-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+.order-summary-row:last-child {
+  border-bottom: none;
+}
+.order-summary-row.total {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold, #c9a227);
+  padding-top: 12px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .receipt-overlay,
+  .receipt-dialog,
+  .receipt-document,
+  .receipt-document * {
+    visibility: visible;
+  }
+  .receipt-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: transparent;
+    padding: 0;
+  }
+  .receipt-dialog {
+    box-shadow: none;
+    max-width: 100%;
+    border-radius: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+

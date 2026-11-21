@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, formatDate, formatXof, METHOD_LABELS, STATUS_LABELS, whatsappHref } from '../api.js';
 import { useSession } from '../session.jsx';
 import { useSite } from '../site.jsx';
+import ReceiptModal from '../components/ReceiptModal.jsx';
 
 export default function Account() {
   const { user, ready, logout } = useSession();
@@ -22,6 +23,19 @@ export default function Account() {
   const [packOrder, setPackOrder] = useState(null);
   const [referral, setReferral] = useState(null);
 
+  /* Phase 6 : Reçus et transactions */
+  const [receiptsList, setReceiptsList] = useState([]);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [receiptSearch, setReceiptSearch] = useState('');
+  const [receiptFilter, setReceiptFilter] = useState('');
+
+  const loadReceipts = (status = '', search = '') => {
+    api
+      .receipts({ status, search })
+      .then((res) => setReceiptsList(res.receipts || []))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     if (ready && !user) navigate('/connexion?next=/compte');
   }, [ready, user, navigate]);
@@ -35,6 +49,7 @@ export default function Account() {
     api.audience().then(setAudience).catch(() => {});
     api.credits().then(setCredits).catch(() => {});
     api.referral().then(setReferral).catch(() => {});
+    loadReceipts(receiptFilter, receiptSearch);
   }, [user]);
 
   if (!ready || !user) return <p className="empty">Chargement…</p>;
@@ -394,18 +409,126 @@ export default function Account() {
           <button type="button" className={tab === 'lectures' ? 'active' : ''} onClick={() => setTab('lectures')}>
             Reprendre la lecture
           </button>
+          <button type="button" className={tab === 'recus' ? 'active' : ''} onClick={() => { setTab('recus'); loadReceipts(receiptFilter, receiptSearch); }}>
+            Mes reçus & transactions
+          </button>
           <button type="button" className={tab === 'achats' ? 'active' : ''} onClick={() => setTab('achats')}>
-            Mes achats
+            Mes commandes
           </button>
           <button type="button" className={tab === 'securite' ? 'active' : ''} onClick={() => setTab('securite')}>
             Mot de passe
           </button>
+          <Link to="/reclamations" style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: '0.86rem', color: 'var(--gold, #c9a227)' }}>
+            Aide & Réclamations →
+          </Link>
           {user.role === 'admin' && (
-            <Link to="/console" style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: '0.86rem' }}>
-              Console d’administration →
+            <Link to="/console" style={{ marginLeft: 16, alignSelf: 'center', fontSize: '0.86rem' }}>
+              Console admin →
             </Link>
           )}
         </div>
+
+        {tab === 'recus' && (
+          <div className="panel">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+              <div>
+                <h2 style={{ margin: 0 }}>Mes preuves d'achat certifiées</h2>
+                <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>
+                  Historique probant et téléchargeable conformément à la Loi n° 2013-546.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  type="search"
+                  placeholder="Rechercher réf, titre..."
+                  value={receiptSearch}
+                  onChange={(e) => {
+                    setReceiptSearch(e.target.value);
+                    loadReceipts(receiptFilter, e.target.value);
+                  }}
+                  style={{ padding: '6px 12px', fontSize: '0.85rem', width: 180 }}
+                />
+                <select
+                  value={receiptFilter}
+                  onChange={(e) => {
+                    setReceiptFilter(e.target.value);
+                    loadReceipts(e.target.value, receiptSearch);
+                  }}
+                  className="select"
+                  style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+                >
+                  <option value="">Tous les statuts</option>
+                  <option value="confirmed">Actifs / Confirmés</option>
+                  <option value="expired">Expirés (30 jours)</option>
+                  <option value="refunded">Remboursés</option>
+                </select>
+              </div>
+            </div>
+
+            {receiptsList.length === 0 ? (
+              <p className="empty">Aucun reçu trouvé. Les reçus sont générés dès validation de votre paiement.</p>
+            ) : (
+              <div style={{ display: 'grid', gap: 12 }}>
+                {receiptsList.map((r) => {
+                  const isConfirmed = r.status === 'confirmed';
+                  const isExpired = r.status === 'expired';
+                  return (
+                    <div
+                      key={r.id}
+                      className="row-item"
+                      style={{
+                        padding: '12px 16px',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid var(--line)',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div className="grow">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <strong>{r.bookTitle}</strong>
+                          <span className="muted">· Chapitre {r.chapterNumber} ({r.chapterTitle})</span>
+                          <span
+                            style={{
+                              fontSize: '0.74rem',
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                              fontWeight: 600,
+                              background: isConfirmed ? 'rgba(16,185,129,0.15)' : isExpired ? 'rgba(245,158,11,0.15)' : 'rgba(107,114,128,0.15)',
+                              color: isConfirmed ? '#10b981' : isExpired ? '#f59e0b' : '#9ca3af',
+                              border: `1px solid ${isConfirmed ? '#10b98140' : isExpired ? '#f59e0b40' : '#9ca3af40'}`,
+                            }}
+                          >
+                            {isConfirmed ? 'Accès actif' : isExpired ? 'Accès expiré (30j)' : 'Remboursé'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.82rem', color: '#9a9082', marginTop: 4 }}>
+                          Reçu <strong>{r.receiptNumber}</strong> · Réf : {r.reference} · {METHOD_LABELS[r.paymentMethod] || r.paymentMethod} · {formatXof(r.amountXof)}
+                          <br />
+                          Confirmé le {formatDate(r.confirmedAt)} · Expiration le <strong>{formatDate(r.expiresAt)}</strong>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {isConfirmed && (
+                          <Link to={`/lire/${r.bookSlug}/${r.chapterNumber}`} className="btn btn-ghost btn-sm">
+                            Lire
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-gold btn-sm"
+                          onClick={() => setSelectedReceipt(r)}
+                        >
+                          📄 Reçu PDF
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {tab === 'lectures' && (
           <div className="panel">
@@ -512,6 +635,13 @@ export default function Account() {
               </button>
             </p>
           </div>
+        )}
+
+        {selectedReceipt && (
+          <ReceiptModal
+            receipt={selectedReceipt}
+            onClose={() => setSelectedReceipt(null)}
+          />
         )}
       </div>
     </div>

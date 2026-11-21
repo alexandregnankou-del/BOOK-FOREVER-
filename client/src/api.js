@@ -81,6 +81,14 @@ export const api = {
   addFavorite: (bookSlug) => request('/api/me/favorites', { method: 'POST', body: { bookSlug } }),
   removeFavorite: (slug) => request(`/api/me/favorites/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
 
+  receipts: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([_, v]) => Boolean(v))).toString();
+    return request(`/api/me/receipts${qs ? `?${qs}` : ''}`);
+  },
+  receipt: (id) => request(`/api/me/receipts/${id}`),
+  claims: () => request('/api/me/claims'),
+  createClaim: (body) => request('/api/me/claims', { method: 'POST', body }),
+
   admin: {
     stats: () => request('/api/admin/stats'),
     books: () => request('/api/admin/books'),
@@ -99,6 +107,8 @@ export const api = {
     validateOrder: (id, note) => request(`/api/admin/orders/${id}/validate`, { method: 'POST', body: { note } }),
     rejectOrder: (id, note) => request(`/api/admin/orders/${id}/reject`, { method: 'POST', body: { note } }),
     refundOrder: (id, note) => request(`/api/admin/orders/${id}/refund`, { method: 'POST', body: { note } }),
+    claims: (status) => request(`/api/admin/claims${status ? `?status=${status}` : ''}`),
+    updateClaim: (id, body) => request(`/api/admin/claims/${id}`, { method: 'PATCH', body }),
     settings: () => request('/api/admin/settings'),
     saveSettings: (body) => request('/api/admin/settings', { method: 'PATCH', body }),
     users: () => request('/api/admin/users'),

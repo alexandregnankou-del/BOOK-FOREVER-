@@ -93,8 +93,8 @@ export default function Layout() {
                     Chaîne WhatsApp
                   </a>
                 )}
-                <Link to="/compte">Mes achats</Link>
-                <Link to="/contact">Assistance</Link>
+                <Link to="/compte">Mes achats & Reçus</Link>
+                <Link to="/reclamations">Aide & Réclamations</Link>
                 <Link to="/a-propos">À propos</Link>
                 <Link to="/regles">Règles à respecter</Link>
               </div>
@@ -102,10 +102,12 @@ export default function Layout() {
             <div>
               <h4>Informations & Légal</h4>
               <div className="links">
+                <Link to="/mentions-legales">Mentions légales</Link>
+                <Link to="/cgv">Conditions Générales de Vente (CGV)</Link>
                 <Link to="/conditions">Conditions d’utilisation</Link>
                 <Link to="/confidentialite">Politique de confidentialité</Link>
-                <Link to="/auteurs">Conditions auteurs (7 500 FCFA & 70% royalties)</Link>
-                <Link to="/contact">Nous écrire</Link>
+                <Link to="/auteurs">Conditions auteurs (7 500 FCFA & 70%)</Link>
+                <Link to="/reclamations">Service client / Litiges</Link>
               </div>
             </div>
           </div>

@@ -19,6 +19,9 @@ import About from './pages/About.jsx';
 import Rules from './pages/Rules.jsx';
 import Ecrire from './pages/Ecrire.jsx';
 import Legal from './pages/Legal.jsx';
+import MentionsLegales from './pages/MentionsLegales.jsx';
+import CGV from './pages/CGV.jsx';
+import Claims from './pages/Claims.jsx';
 import Install from './pages/Install.jsx';
 import Download from './pages/Download.jsx';
 import Console from './pages/Console.jsx';
@@ -44,6 +47,10 @@ export function AppRoutes() {
         <Route path="/ecrire" element={<Ecrire />} />
         <Route path="/conditions" element={<Legal kind="terms" />} />
         <Route path="/confidentialite" element={<Legal kind="privacy" />} />
+        <Route path="/mentions-legales" element={<MentionsLegales />} />
+        <Route path="/cgv" element={<CGV />} />
+        <Route path="/reclamations" element={<Claims />} />
+        <Route path="/assistance" element={<Claims />} />
         <Route path="/installer" element={<Install />} />
         <Route path="/telecharger" element={<Download />} />
         <Route path="*" element={<NotFound />} />
