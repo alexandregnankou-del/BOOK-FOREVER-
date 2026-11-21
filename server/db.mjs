@@ -315,6 +315,9 @@ export const DEFAULT_SETTINGS = {
   passDays: '7',
   packPrice: '1200',
   packCredits: '5',
+  vipPrice: '5000',
+  vipDays: '30',
+  bookFullPrice: '1500',
   accessDays: '30',
   referralTarget: '3',
   referralReward: '1',
@@ -391,6 +394,8 @@ export function publicSite() {
       monthly: { priceXof: numberOr(s.monthlyPrice, 2000), days: numberOr(s.monthlyDays, 30) },
       pass: { priceXof: numberOr(s.passPrice, 500), days: numberOr(s.passDays, 7) },
       pack: { priceXof: numberOr(s.packPrice, 1200), credits: numberOr(s.packCredits, 5) },
+      vip: { priceXof: numberOr(s.vipPrice, 5000), days: numberOr(s.vipDays, 30) },
+      bookFull: { priceXof: numberOr(s.bookFullPrice, 1500) },
       referral: { target: numberOr(s.referralTarget, 3), reward: numberOr(s.referralReward, 1) },
     },
   };
@@ -411,6 +416,8 @@ export function offerList() {
     monthly: site.offers.monthly,
     pass: site.offers.pass,
     pack: site.offers.pack,
+    vip: site.offers.vip,
+    bookFull: site.offers.bookFull,
     referral: site.offers.referral,
   };
 }

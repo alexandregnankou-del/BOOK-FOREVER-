@@ -223,6 +223,24 @@ export default function Account() {
                     {subBusy === 'monthly' ? 'Envoi…' : 'S’abonner'}
                   </button>
                 </div>
+
+                <div className="offer" style={{ borderColor: 'var(--gold, #c9a227)', background: 'rgba(201,162,39,0.08)' }}>
+                  <span className="offer-tag" style={{ background: 'var(--gold, #c9a227)', color: '#14110e', fontWeight: 700 }}>
+                    👑 Pass VIP Club
+                  </span>
+                  <strong style={{ color: 'var(--gold, #c9a227)' }}>{formatXof(subscription?.vip?.priceXof || 5000)}</strong>
+                  <span className="hint">
+                    Tout le catalogue illimité + Avant-premières 7j + Salon VIP WhatsApp
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-gold btn-sm"
+                    onClick={() => subscribe('vip')}
+                    disabled={Boolean(subBusy)}
+                  >
+                    {subBusy === 'vip' ? 'Envoi…' : 'Rejoindre le VIP'}
+                  </button>
+                </div>
               </div>
             )}
 

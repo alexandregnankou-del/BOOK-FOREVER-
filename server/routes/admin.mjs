@@ -432,6 +432,20 @@ adminRoutes.post('/orders/:id/validate', (req, res) => {
   // Phase 6 : Génération automatique du reçu électronique certifié
   const receipt = generateReceiptForOrder(row.id);
 
+  // Si c'est une commande d'intégrale de roman, débloquer tous les chapitres du livre
+  if (row.note && row.note.includes('Intégrale')) {
+    const allChapters = db.prepare("SELECT id FROM chapters WHERE book_id = ? AND is_free = 0 AND status = 'published'").all(row.book_id);
+    for (const ch of allChapters) {
+      if (ch.id !== row.chapter_id) {
+        db.prepare(`
+          INSERT INTO orders (reference, user_id, book_id, chapter_id, amount_xof, method, status, validated_at, expires_at, note)
+          VALUES (?, ?, ?, ?, 0, ?, 'paid', CURRENT_TIMESTAMP, date('now', '+${accessDays} days'), 'Inclus dans Intégrale')
+          ON CONFLICT(reference) DO UPDATE SET status = 'paid', validated_at = CURRENT_TIMESTAMP, expires_at = date('now', '+${accessDays} days')
+        `).run(`${row.reference}-CH${ch.id}`, row.user_id, row.book_id, ch.id, row.method);
+      }
+    }
+  }
+
   res.json({ ok: true, order: db.prepare('SELECT * FROM orders WHERE id = ?').get(row.id), receipt });
 });
 

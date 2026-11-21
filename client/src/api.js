@@ -54,6 +54,7 @@ export const api = {
 
   purchases: () => request('/api/me/purchases'),
   buy: (body) => request('/api/me/purchases', { method: 'POST', body }),
+  buyBookFull: (body) => request('/api/me/purchases/book', { method: 'POST', body }),
   progress: () => request('/api/me/progress'),
   saveProgress: (body) => request('/api/me/progress', { method: 'POST', body }),
   overview: () => request('/api/me/overview'),

@@ -189,7 +189,7 @@ export default function Reader() {
 
   const startPurchase = async () => {
     if (!user) {
-      navigate(`/connexion?next=${encodeURIComponent(`/lire/${slug}/${number}`)}`);
+      window.location.assign(`/connexion?next=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
     setBusy(true);
@@ -198,16 +198,24 @@ export default function Reader() {
       const res = await api.buy({ bookSlug: slug, chapterNumber: Number(number), method });
       setOrder(res);
     } catch (err) {
-      if (err.status === 409) {
-        setNotice('Ce chapitre est déjà débloqué. Rechargez la page.');
-      } else if (isNetworkFailure(err)) {
-        queueOrder({ bookSlug: slug, chapterNumber: Number(number), method });
-        setNotice(
-          'Hors ligne : votre paiement est enregistré. Il partira dès le retour du réseau.',
-        );
-      } else {
-        setNotice(err.message);
-      }
+      setNotice(err.message || 'Impossible de créer la commande.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startFullPurchase = async () => {
+    if (!user) {
+      window.location.assign(`/connexion?next=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    setBusy(true);
+    setNotice('');
+    try {
+      const res = await api.buyBookFull({ bookSlug: slug, method });
+      setOrder(res);
+    } catch (err) {
+      setNotice(err.message || 'Impossible de créer la commande intégrale.');
     } finally {
       setBusy(false);
     }
@@ -456,9 +464,29 @@ export default function Reader() {
                     En validant, vous recevrez un <strong>accusé de réception électronique</strong> avec votre référence unique,
                     puis un <strong>reçu officiel téléchargeable</strong> dès confirmation du paiement.
                   </p>
-                  <button type="button" className="btn btn-gold btn-block" onClick={startPurchase} disabled={busy}>
-                    {busy ? 'Préparation…' : user ? `Confirmer la commande (${formatXof(chapter.priceXof)})` : 'Se connecter pour commander'}
-                  </button>
+                  
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <button type="button" className="btn btn-gold btn-block" onClick={startPurchase} disabled={busy}>
+                      {busy ? 'Préparation…' : user ? `1. Débloquer ce chapitre (${formatXof(chapter.priceXof)})` : 'Se connecter pour commander'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-block"
+                      style={{
+                        background: 'linear-gradient(135deg, #c9a227, #9b7a1c)',
+                        color: '#14110e',
+                        fontWeight: 700,
+                        border: 'none',
+                        padding: '12px 16px',
+                        cursor: 'pointer',
+                      }}
+                      onClick={startFullPurchase}
+                      disabled={busy}
+                    >
+                      ⚡ 2. Débloquer TOUT le roman — 1 500 FCFA (Économisez 66%)
+                    </button>
+                  </div>
                 </div>
 
                 {user && (payload.paywall.credits || 0) > 0 && (

@@ -105,6 +105,58 @@ meRoutes.post('/purchases', (req, res) => {
   });
 });
 
+/* Déblocage du Roman Intégral en 1 clic (1 500 FCFA pour tous les chapitres) */
+meRoutes.post('/purchases/book', (req, res) => {
+  const settings = getSettings();
+  const slug = String(req.body?.bookSlug || '');
+  const method = String(req.body?.method || 'wave_link');
+  const fullPrice = Number(settings.bookFullPrice || 1500);
+
+  const allowed = new Set(['wave_link', 'orange_money_direct']);
+  if (!allowed.has(method)) {
+    return res.status(400).json({ error: 'Moyen de paiement non pris en charge.' });
+  }
+
+  const book = db.prepare('SELECT * FROM books WHERE slug = ?').get(slug);
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+
+  const chapters = db
+    .prepare("SELECT * FROM chapters WHERE book_id = ? AND is_free = 0 AND status = 'published' ORDER BY number")
+    .all(book.id);
+  if (chapters.length === 0) return res.status(400).json({ error: 'Aucun chapitre payant pour ce roman.' });
+
+  // Premier chapitre payant utilisé comme ancre pour l'ordre
+  const firstPaid = chapters[0];
+
+  const pending = db
+    .prepare("SELECT * FROM orders WHERE user_id = ? AND book_id = ? AND note LIKE '%Intégrale%' AND status = 'pending'")
+    .get(req.user.id, book.id);
+  if (pending) {
+    return res.json({
+      order: {
+        reference: pending.reference,
+        amountXof: pending.amount_xof,
+        method: pending.method,
+        status: pending.status,
+        createdAt: pending.created_at,
+      },
+      reused: true,
+      instructions: buildInstructions(settings, pending.method, pending.reference, pending.amount_xof, `Intégrale ${book.title}`),
+    });
+  }
+
+  const reference = makeReference('BF-FULL');
+  db.prepare(`
+    INSERT INTO orders (reference, user_id, book_id, chapter_id, amount_xof, method, status, note)
+    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`)
+    .run(reference, req.user.id, book.id, firstPaid.id, fullPrice, method, `Intégrale du roman (${chapters.length} chapitres)`);
+
+  res.status(201).json({
+    order: { reference, amountXof: fullPrice, method, status: 'pending', bookTitle: book.title },
+    instructions: buildInstructions(settings, method, reference, fullPrice, `Intégrale ${book.title}`),
+  });
+});
+
 function buildInstructions(settings, method, reference, amount, subject = '') {
   const what = subject ? ` (${subject})` : '';
   const tail = 'Revenez ici : tout s’ouvre dès validation (sous 30 min en journée).';
@@ -255,6 +307,7 @@ meRoutes.get('/overview', (req, res) => {
 
 function planOf(plan) {
   const offers = offerList();
+  if (plan === 'vip') return { plan: 'vip', label: 'Pass VIP Club Littéraire', priceXof: offers.vip?.priceXof || 5000, days: offers.vip?.days || 30 };
   if (plan === 'week') return { plan: 'week', label: 'Pass 7 jours', priceXof: offers.pass.priceXof, days: offers.pass.days };
   return { plan: 'monthly', label: 'Abonnement mensuel', priceXof: offers.monthly.priceXof, days: offers.monthly.days };
 }
@@ -279,6 +332,8 @@ meRoutes.get('/subscription', (req, res) => {
     days: offers.monthly.days,
     pass: offers.pass,
     monthly: offers.monthly,
+    vip: offers.vip,
+    bookFull: offers.bookFull,
     accessDays: offers.accessDays,
     active: Boolean(active),
     plan: active?.plan || '',
@@ -289,16 +344,23 @@ meRoutes.get('/subscription', (req, res) => {
 
 meRoutes.post('/subscription', (req, res) => {
   const method = String(req.body?.method || 'wave_link');
-  const reference = String(req.body?.reference || '').slice(0, 120);
   const chosen = planOf(String(req.body?.plan || 'monthly'));
+  const reference = String(req.body?.reference || makeReference(chosen.plan === 'vip' ? 'BF-VIP' : 'BF-SUB')).slice(0, 120);
   if (!['wave_link', 'orange_money_direct'].includes(method)) {
     return res.status(400).json({ error: 'Moyen de paiement inconnu.' });
   }
   const pending = db
-    .prepare("SELECT id FROM subscriptions WHERE user_id = ? AND status = 'pending'")
+    .prepare("SELECT id, reference, method, amount_xof FROM subscriptions WHERE user_id = ? AND status = 'pending'")
     .get(req.user.id);
   if (pending) {
-    return res.status(409).json({ error: 'Une demande d’abonnement est déjà en attente de validation.' });
+    return res.json({
+      reused: true,
+      plan: chosen.plan,
+      amountXof: pending.amount_xof,
+      reference: pending.reference,
+      instructions: buildInstructions(getSettings(), pending.method, pending.reference, pending.amount_xof, chosen.label),
+      message: `${chosen.label} déjà en attente. Utilisez la référence ci-dessous.`,
+    });
   }
   db.prepare('INSERT INTO subscriptions (user_id, method, reference, amount_xof, plan, days) VALUES (?, ?, ?, ?, ?, ?)')
     .run(req.user.id, method, reference, chosen.priceXof, chosen.plan, chosen.days);
@@ -307,6 +369,7 @@ meRoutes.post('/subscription', (req, res) => {
     plan: chosen.plan,
     amountXof: chosen.priceXof,
     days: chosen.days,
+    reference,
     instructions: buildInstructions(getSettings(), method, reference, chosen.priceXof, chosen.label),
     message: `${chosen.label} enregistré. Il s’active dès validation du paiement.`,
   });
