@@ -40,6 +40,12 @@ export default function Layout() {
             <img src="/icons/icon-192.png" alt="" />
             <span>{site.siteName}</span>
           </Link>
+          <nav className="header-nav" style={{ marginLeft: 'auto', display: 'flex', gap: 16, alignItems: 'center' }}>
+            <Link to="/bibliotheque" className="nav-link">Romans</Link>
+            <Link to="/auteurs" className="nav-link" style={{ color: 'var(--gold, #c9a227)', fontWeight: 600 }}>
+              Devenir Auteur (80% royalties)
+            </Link>
+          </nav>
         </div>
       </header>
 
@@ -73,9 +79,12 @@ export default function Layout() {
               </p>
             </div>
             <div>
-              <h4>Lire</h4>
+              <h4>Lire & Publier</h4>
               <div className="links">
                 <Link to="/bibliotheque">Tous les romans</Link>
+                <Link to="/auteurs" style={{ color: 'var(--gold, #c9a227)', fontWeight: 600 }}>
+                  Espace Auteurs (Publier)
+                </Link>
                 <Link to="/videos">Les romans en vidéo</Link>
                 <Link to="/telecharger">Télécharger l’application</Link>
                 <Link to="/installer">Installer en 3 touches</Link>
@@ -91,10 +100,11 @@ export default function Layout() {
               </div>
             </div>
             <div>
-              <h4>Informations</h4>
+              <h4>Informations & Légal</h4>
               <div className="links">
                 <Link to="/conditions">Conditions d’utilisation</Link>
                 <Link to="/confidentialite">Politique de confidentialité</Link>
+                <Link to="/auteurs">Conditions auteurs (7 500 FCFA & 80% royalties)</Link>
                 <Link to="/contact">Nous écrire</Link>
               </div>
             </div>

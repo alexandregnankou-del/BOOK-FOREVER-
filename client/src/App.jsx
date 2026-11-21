@@ -37,6 +37,8 @@ export function AppRoutes() {
         <Route path="/compte" element={<Account />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/auteurs" element={<Auteurs />} />
+        <Route path="/devenir-auteur" element={<Auteurs />} />
+        <Route path="/espace-auteur" element={<Auteurs />} />
         <Route path="/a-propos" element={<About />} />
         <Route path="/regles" element={<Rules />} />
         <Route path="/ecrire" element={<Ecrire />} />
