@@ -43,6 +43,8 @@ export const api = {
   book: (slug) => request(`/api/books/${encodeURIComponent(slug)}`),
   chapter: (slug, number) => request(`/api/books/${encodeURIComponent(slug)}/chapters/${number}`),
   contact: (body) => request('/api/contact', { method: 'POST', body }),
+  captureLead: (body) => request('/api/leads', { method: 'POST', body }),
+  checkout: (body) => request('/api/payments/checkout', { method: 'POST', body }),
   share: (body) => request('/api/shares', { method: 'POST', body: { ...body, visitor: visitorId() } }),
   myShares: () => request('/api/shares/mine'),
 

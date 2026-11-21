@@ -212,6 +212,52 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Preuve sociale : Avis Lecteurs */}
+      <section className="section" style={{ background: 'rgba(255, 255, 255, 0.015)' }}>
+        <div className="wrap">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Témoignages & Émotions</span>
+              <h2>Ils ont lu Book Forever</h2>
+              <p className="muted">Découvrez ce que les lecteurs ivoiriens et passionnés d'Afrique en pensent.</p>
+            </div>
+          </div>
+          <div className="reviews-grid">
+            <div className="review-card">
+              <div>
+                <div className="review-stars">★★★★★</div>
+                <div className="review-text">« J’ai commencé Amour Perdu hier soir, je n’ai pas pu m’arrêter jusqu’au petit matin. »</div>
+              </div>
+              <div className="review-author">Aïcha <span className="review-location">· Abidjan</span></div>
+            </div>
+
+            <div className="review-card">
+              <div>
+                <div className="review-stars">★★★★★</div>
+                <div className="review-text">« Enfin des histoires et des romans qui nous ressemblent vraiment, avec nos réalités. »</div>
+              </div>
+              <div className="review-author">Koffi <span className="review-location">· Yamoussoukro</span></div>
+            </div>
+
+            <div className="review-card">
+              <div>
+                <div className="review-stars">★★★★★</div>
+                <div className="review-text">« Les 2 chapitres gratuits m’ont totalement convaincue. J’ai acheté toute la suite par Wave ! »</div>
+              </div>
+              <div className="review-author">Mariam <span className="review-location">· Bouaké</span></div>
+            </div>
+
+            <div className="review-card">
+              <div>
+                <div className="review-stars">★★★★★</div>
+                <div className="review-text">« Des émotions intenses, une plume magnifique et le déblocage en 1 clic est super rapide. »</div>
+              </div>
+              <div className="review-author">Marc <span className="review-location">· San-Pédro</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="section">
         <div className="wrap">
           <div className="section-head">

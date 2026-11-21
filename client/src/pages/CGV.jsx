@@ -48,10 +48,20 @@ export default function CGV() {
           </li>
         </ul>
 
-        <h2>3. Tarification & Devise</h2>
+        <h2>3. Tarification & Formules d'accès</h2>
         <p>
-          Les prix sont indiqués en <strong>Francs CFA (XOF)</strong>, toutes taxes comprises. Le tarif unitaire standard est de{' '}
-          <strong>{site.priceXof || 300} FCFA</strong> par chapitre. {site.siteName} se réserve le droit de modifier ses tarifs à tout moment,
+          Les prix sont indiqués en <strong>Francs CFA (XOF)</strong>, toutes taxes comprises. La grille tarifaire est structurée comme suit :
+        </p>
+        <ul>
+          <li><strong>Chapitre à l'unité :</strong> 300 FCFA par chapitre. Chaque chapitre acheté reste accessible 30 jours sur le compte du lecteur.</li>
+          <li><strong>Pass Finir un roman (7 jours) :</strong> 500 FCFA pour lire sans limite pendant 7 jours.</li>
+          <li><strong>Pack 5 chapitres :</strong> 1 200 FCFA (soit 240 FCFA le chapitre sous forme de crédits réutilisables).</li>
+          <li><strong>Roman Intégral :</strong> 1 500 FCFA pour débloquer l'ensemble des chapitres d'un roman d'un seul coup.</li>
+          <li><strong>Abonnement Mensuel Catalogue :</strong> 2 000 FCFA pour 30 jours d'accès illimité à l'ensemble des romans.</li>
+          <li><strong>Pass VIP Club Littéraire :</strong> 5 000 FCFA pour 30 jours d'accès illimité, lectures en avant-première et salon exclusif.</li>
+        </ul>
+        <p>
+          {site.siteName} se réserve le droit de modifier ses tarifs à tout moment,
           étant entendu que le tarif applicable est celui expressément affiché et validé par le lecteur lors du récapitulatif de commande.
         </p>
 

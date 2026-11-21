@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, formatXof, whatsappHref } from '../api.js';
 import { queueOrder, isNetworkFailure } from '../offline.js';
 import { useSession } from '../session.jsx';
 import { useSite } from '../site.jsx';
+import WhatsAppCaptureModal from '../components/WhatsAppCaptureModal.jsx';
 
 /* Les manuscrits sont arrivés avec des retours à la ligne de mise en page et des
    doubles espaces de justification. Sans ce traitement, chaque ligne devient un
@@ -83,6 +84,7 @@ function cachedChapter(slug, number) {
 
 export default function Reader() {
   const { slug, number } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useSession();
   const site = useSite();
@@ -95,6 +97,13 @@ export default function Reader() {
   const [tocOpen, setTocOpen] = useState(false);
   const [tocItems, setTocItems] = useState([]);
   const [tocLoading, setTocLoading] = useState(false);
+  const [showWhatsApp, setShowWhatsApp] = useState(() => {
+    try {
+      return Number(number) === 1 && !localStorage.getItem('bf_whatsapp') && !localStorage.getItem('bf_whatsapp_skip');
+    } catch {
+      return false;
+    }
+  });
   const audioRef = useRef(null);
   const [shareNote, setShareNote] = useState('');
   const saved = useRef(0);
@@ -216,6 +225,22 @@ export default function Reader() {
       setOrder(res);
     } catch (err) {
       setNotice(err.message || 'Impossible de créer la commande intégrale.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAutoCheckout = async (provider = 'wave') => {
+    if (!order?.order?.reference) return;
+    setBusy(true);
+    setNotice('');
+    try {
+      const res = await api.checkout({ reference: order.order.reference, provider });
+      if (res?.launchUrl) {
+        window.location.assign(res.launchUrl);
+      }
+    } catch (err) {
+      setNotice(err.message || 'Paiement automatique indisponible. Utilisez le lien ou le numéro ci-dessous.');
     } finally {
       setBusy(false);
     }
@@ -541,10 +566,29 @@ export default function Reader() {
                     <li key={i}>{step}</li>
                   ))}
                 </ol>
+                <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-gold btn-sm"
+                    onClick={() => handleAutoCheckout('wave')}
+                    disabled={busy}
+                  >
+                    ⚡ Payer en 1 clic avec Wave
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => handleAutoCheckout('cinetpay')}
+                    disabled={busy}
+                  >
+                    💳 Payer en ligne (CinetPay / Orange / Moov / MTN / Carte)
+                  </button>
+                </div>
+
                 {order.instructions.url && (
                   <p style={{ marginTop: 12 }}>
-                    <a href={order.instructions.url} target="_blank" rel="noreferrer" className="btn btn-gold btn-sm">
-                      Ouvrir la page Wave
+                    <a href={order.instructions.url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+                      Ouvrir la page Wave directe
                     </a>
                   </p>
                 )}
@@ -714,6 +758,13 @@ export default function Reader() {
         </div>
         <p className="reader-protect">Texte protégé · reproduction interdite</p>
       </article>
+
+      {showWhatsApp && (
+        <WhatsAppCaptureModal
+          bookSlug={slug}
+          onUnlocked={() => setShowWhatsApp(false)}
+        />
+      )}
     </div>
   );
 }

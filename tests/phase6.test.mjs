@@ -69,6 +69,7 @@ function createClient() {
 
 const reader = createClient();
 const admin = createClient();
+const anon = createClient();
 
 test('Phase 6 - Inscription lecteur & Commande avant paiement', async () => {
   const reg = await reader('/api/auth/register', {
@@ -175,6 +176,67 @@ test('Phase 6 - Traitement admin de la réclamation', async () => {
   const userClaim = refreshed.json.claims.find((c) => c.id === targetClaim.id);
   assert.equal(userClaim.status, 'RESOLU');
   assert.equal(userClaim.adminReply, 'Votre paiement a été identifié et vos droits de lecture ont été débloqués pour 30 jours.');
+});
+
+test('Phase 6 - Capture de Lead WhatsApp avant lecture', async () => {
+  // Test format invalide
+  const bad = await anon('/api/leads', {
+    method: 'POST',
+    body: { phone: '123456', bookSlug: 'amour-perdu' },
+  });
+  assert.equal(bad.status, 400);
+
+  // Test format valide ivoirien (07 XX XX XX XX)
+  const good = await anon('/api/leads', {
+    method: 'POST',
+    body: { phone: '0706486904', bookSlug: 'amour-perdu' },
+  });
+  assert.equal(good.status, 201);
+  assert.equal(good.json.phone, '0706486904');
+  assert.ok(good.json.ok);
+
+  // Test avec indicatif +225
+  const intl = await anon('/api/leads', {
+    method: 'POST',
+    body: { phone: '+225 05 12 34 56 78', bookSlug: 'amour-perdu' },
+  });
+  assert.equal(intl.status, 201);
+  assert.equal(intl.json.phone, '0512345678');
+});
+
+test('Phase 6 - Paiement automatisé & Webhook Wave / CinetPay', async () => {
+  // Créer une commande en attente
+  const orderRes = await reader('/api/me/purchases', {
+    method: 'POST',
+    body: { bookSlug: 'amour-perdu', chapterNumber: 4, method: 'wave_link' },
+  });
+  assert.equal(orderRes.status, 201);
+  const ref = orderRes.json.order.reference;
+
+  // Checkout API
+  const checkoutRes = await anon('/api/payments/checkout', {
+    method: 'POST',
+    body: { reference: ref, provider: 'wave' },
+  });
+  assert.equal(checkoutRes.status, 200);
+  assert.ok(checkoutRes.json.launchUrl);
+
+  // Webhook Wave simulant un paiement réussi
+  const webhookRes = await anon('/api/payments/webhook/wave', {
+    method: 'POST',
+    body: {
+      type: 'checkout.session.completed',
+      data: { client_reference: ref },
+    },
+  });
+  assert.equal(webhookRes.status, 200);
+
+  // Vérifier que le chapitre est maintenant débloqué pour le lecteur
+  const receipts = await reader('/api/me/receipts');
+  assert.equal(receipts.status, 200);
+  const myReceipt = receipts.json.receipts.find((r) => r.reference === ref);
+  assert.ok(myReceipt, 'Le reçu automatique doit exister suite au webhook');
+  assert.equal(myReceipt.status, 'confirmed');
 });
 
 test('Phase 6 - Scripts de Sauvegarde externe et Restauration', () => {

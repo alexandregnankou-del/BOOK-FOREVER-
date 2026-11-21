@@ -2911,10 +2911,48 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   margin: 0;
   max-width: 520px;
 }
-.videos-footer-actions {
+/* ---------- Preuve sociale : Avis Lecteurs ---------- */
+.reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+.review-card {
+  background: var(--surface, #1d1915);
+  border: 1px solid var(--border, rgba(201, 162, 39, 0.2));
+  border-radius: 12px;
+  padding: 20px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.review-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold, #c9a227);
+}
+.review-stars {
+  color: #ffb800;
+  font-size: 1rem;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+.review-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #f5eee6;
+  font-style: italic;
+  margin-bottom: 14px;
+}
+.review-author {
+  font-size: 0.85rem;
+  color: var(--gold, #c9a227);
+  font-weight: 600;
+}
+.review-location {
+  color: var(--muted, #9e8f80);
+  font-weight: 400;
 }
 
 /* ---------- Phase 6 : Reçus électroniques & Modal ---------- */

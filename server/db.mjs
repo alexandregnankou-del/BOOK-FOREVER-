@@ -251,6 +251,17 @@ CREATE TABLE IF NOT EXISTS claims (
 CREATE INDEX IF NOT EXISTS idx_claims_user ON claims(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status, created_at);
 
+/* ---------- Table des leads WhatsApp capturés avant lecture gratuite ---------- */
+CREATE TABLE IF NOT EXISTS leads (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'chapter1_gate',
+  book_slug TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(phone);
+
 CREATE INDEX IF NOT EXISTS idx_chapters_book ON chapters(book_id, number);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_orders_pending ON orders(status, created_at);
@@ -755,5 +766,27 @@ export function listAdminClaims(status = '') {
   }
   query += " ORDER BY CASE c.status WHEN 'OUVERT' THEN 0 WHEN 'EN_COURS' THEN 1 WHEN 'EN_ATTENTE' THEN 2 ELSE 3 END, c.created_at DESC";
   return db.prepare(query).all(...params);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                     Capture de Leads WhatsApp                              */
+/* -------------------------------------------------------------------------- */
+
+export function saveLead({ phone, source = 'chapter1_gate', bookSlug = '', ip = '' }) {
+  const cleanPhone = String(phone || '').replace(/[^0-9]/g, '');
+  if (!cleanPhone) return null;
+  const existing = db.prepare('SELECT * FROM leads WHERE phone = ?').get(cleanPhone);
+  if (existing) return existing;
+
+  const info = db.prepare(`
+    INSERT INTO leads (phone, source, book_slug, ip)
+    VALUES (?, ?, ?, ?)
+  `).run(cleanPhone, String(source).slice(0, 50), String(bookSlug).slice(0, 100), String(ip).slice(0, 60));
+
+  return db.prepare('SELECT * FROM leads WHERE id = ?').get(info.lastInsertRowid);
+}
+
+export function listLeads(limit = 200) {
+  return db.prepare('SELECT * FROM leads ORDER BY created_at DESC LIMIT ?').all(limit);
 }
 

@@ -9,6 +9,7 @@ import { publicRoutes } from './routes/public.mjs';
 import { authRoutes } from './routes/auth.mjs';
 import { meRoutes } from './routes/me.mjs';
 import { adminRoutes } from './routes/admin.mjs';
+import { paymentRoutes } from './routes/payments.mjs';
 
 const app = express();
 app.disable('x-powered-by');
@@ -52,6 +53,7 @@ app.use('/api', publicRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.get('/api', (req, res) => res.json({ name: 'BOOK FOREVER API', version: APP_VERSION, release: APP_RELEASE }));
 
