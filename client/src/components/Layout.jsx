@@ -43,7 +43,7 @@ export default function Layout() {
           <nav className="header-nav" style={{ marginLeft: 'auto', display: 'flex', gap: 16, alignItems: 'center' }}>
             <Link to="/bibliotheque" className="nav-link">Romans</Link>
             <Link to="/auteurs" className="nav-link" style={{ color: 'var(--gold, #c9a227)', fontWeight: 600 }}>
-              Devenir Auteur (80% royalties)
+              Devenir Auteur (70% royalties)
             </Link>
           </nav>
         </div>
@@ -104,7 +104,7 @@ export default function Layout() {
               <div className="links">
                 <Link to="/conditions">Conditions d’utilisation</Link>
                 <Link to="/confidentialite">Politique de confidentialité</Link>
-                <Link to="/auteurs">Conditions auteurs (7 500 FCFA & 80% royalties)</Link>
+                <Link to="/auteurs">Conditions auteurs (7 500 FCFA & 70% royalties)</Link>
                 <Link to="/contact">Nous écrire</Link>
               </div>
             </div>

@@ -42,7 +42,7 @@ export default function Auteurs() {
         `Titre du roman : ${form.subject || 'Sans titre'}`,
         `Genre : ${form.genre}`,
         `Moyen de versement royalties souhaité : ${form.payoutMethod === 'wave' ? 'Wave' : 'Orange Money'}`,
-        `Frais d'inscription acceptés : 7 500 FCFA (répartition 80% auteur / 20% plateforme)`,
+        `Frais d'inscription acceptés : 7 500 FCFA (répartition 70% auteur / 30% plateforme)`,
         '',
         '--- MANUSCRIT / EXTRAITS ---',
         form.body,
@@ -82,11 +82,11 @@ export default function Auteurs() {
       <div className="wrap">
         <div className="auteurs-hero">
           <span className="eyebrow">Espace Auteurs & Publication</span>
-          <h1>Vous écrivez ?<br />Publiez et gagnez 80% sur vos ventes.</h1>
+          <h1>Vous écrivez ?<br />Publiez et gagnez 70% sur vos ventes.</h1>
           <p className="muted" style={{ maxWidth: 640 }}>
             Rejoignez {site.siteName} et diffusez vos romans auprès de milliers de lecteurs passionnés.
             Vos lecteurs débloquent vos chapitres par Mobile Money (Wave / Orange Money) et vous percevez
-            directement <strong>80% de royalties</strong> sur chaque vente.
+            directement <strong>70% de royalties</strong> sur chaque vente.
           </p>
         </div>
 
@@ -95,8 +95,8 @@ export default function Auteurs() {
             <h2>Vos avantages</h2>
             <ul className="auteurs-list">
               <li>
-                <strong>80% de royalties directes</strong> : Sur chaque chapitre vendu (300 FCFA), vous touchez
-                80% net. La plateforme ne prélève que 20% de commission technique.
+                <strong>70% de royalties directes</strong> : Sur chaque chapitre vendu (300 FCFA), vous touchez
+                70% net. La plateforme prélève 30% de commission technique et de gestion.
               </li>
               <li>
                 <strong>Frais de publication uniques (7 500 FCFA)</strong> : Forfait d’inscription unique par roman couvrant la
@@ -205,7 +205,7 @@ export default function Auteurs() {
                 />
               </label>
               <label>
-                <span>Moyen de paiement souhaité pour vos royalties (80%)</span>
+                <span>Moyen de paiement souhaité pour vos royalties (70%)</span>
                 <select value={form.payoutMethod} onChange={update('payoutMethod')} className="select">
                   <option value="wave">Wave Mobile Money</option>
                   <option value="orange">Orange Money</option>
@@ -237,7 +237,7 @@ export default function Auteurs() {
                 <Link to="/conditions" target="_blank" style={{ color: 'var(--gold, #c9a227)' }}>
                   Conditions de publication
                 </Link>{' '}
-                (frais d'inscription de 7 500 FCFA après validation éditoriale et reversement de 80% des royalties sur les ventes).
+                (frais d'inscription de 7 500 FCFA après validation éditoriale et reversement de 70% des royalties sur les ventes).
               </span>
             </label>
 

@@ -85,8 +85,8 @@ export default function Legal({ kind }) {
             <li>
               <strong>Répartition des revenus (Royalties) :</strong> Sur chaque vente de chapitre débloqué et payé par les lecteurs (au tarif unitaire de {site.priceXof || 300} FCFA) :
               <ul>
-                <li><strong>80% du montant net</strong> revient directement à l'auteur de l'œuvre.</li>
-                <li><strong>20% de commission</strong> est conservé par {site.siteName} pour couvrir les coûts d'hébergement, la maintenance des serveurs et les frais de traitement technique.</li>
+                <li><strong>70% du montant net</strong> revient directement à l'auteur de l'œuvre.</li>
+                <li><strong>30% de commission</strong> est conservé par {site.siteName} pour couvrir les coûts d'hébergement, la promotion, la maintenance des serveurs et les frais de traitement technique.</li>
               </ul>
             </li>
             <li>
@@ -129,7 +129,7 @@ export default function Legal({ kind }) {
         <h2>1. Données collectées</h2>
         <ul>
           <li>Compte lecteur : adresse e-mail, nom affiché, mot de passe stocké sous forme chiffrée (jamais en clair).</li>
-          <li>Auteurs candidats & publiés : nom / nom de plume, adresse e-mail, numéro WhatsApp / téléphone, coordonnées Mobile Money (Wave / Orange Money) pour le reversement des 80% de royalties, synopsis et manuscrits soumis.</li>
+          <li>Auteurs candidats & publiés : nom / nom de plume, adresse e-mail, numéro WhatsApp / téléphone, coordonnées Mobile Money (Wave / Orange Money) pour le reversement des 70% de royalties, synopsis et manuscrits soumis.</li>
           <li>Commandes : chapitre demandé, montant, moyen de paiement, référence, statut.</li>
           <li>Lecture : dernier chapitre ouvert, pour reprendre la lecture où vous l’avez laissée.</li>
           <li>Messages envoyés via le formulaire de contact : nom, e-mail, contenu du message.</li>
@@ -141,7 +141,7 @@ export default function Legal({ kind }) {
         </p>
         <ul>
           <li>Ouvrir les chapitres achetés et gérer l'accès aux lectures.</li>
-          <li>Traiter les candidatures des auteurs, publier les œuvres validées (frais de 7 500 FCFA) et assurer le calcul ainsi que le reversement des 80% de royalties.</li>
+          <li>Traiter les candidatures des auteurs, publier les œuvres validées (frais de 7 500 FCFA) et assurer le calcul ainsi que le reversement des 70% de royalties.</li>
           <li>Assurer l'assistance client, répondre aux messages et tenir la comptabilité légale des ventes.</li>
         </ul>
         <p>
