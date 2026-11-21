@@ -42,7 +42,7 @@ export default function Auteurs() {
         `Titre du roman : ${form.subject || 'Sans titre'}`,
         `Genre : ${form.genre}`,
         `Moyen de versement royalties souhaité : ${form.payoutMethod === 'wave' ? 'Wave' : 'Orange Money'}`,
-        `Frais d'inscription acceptés : 7 500 FCFA (répartition 70% auteur / 30% plateforme)`,
+        `Formule acceptée : 7 500 FCFA à l'inscription (1er mois inclus), puis 5 000 FCFA/mois (déductibles des ventes), 70% de royalties nettes`,
         '',
         '--- MANUSCRIT / EXTRAITS ---',
         form.body,
@@ -92,26 +92,28 @@ export default function Auteurs() {
 
         <div className="auteurs-grid">
           <div className="panel">
-            <h2>Vos avantages</h2>
+            <h2>Vos avantages & Rémunération</h2>
             <ul className="auteurs-list">
               <li>
-                <strong>70% de royalties directes</strong> : Sur chaque chapitre vendu (300 FCFA), vous touchez
-                70% net. La plateforme prélève 30% de commission technique et de gestion.
+                <strong>70% de royalties nettes</strong> : Sur chaque chapitre vendu (300 FCFA), vous touchez
+                70% net (210 FCFA). La plateforme prélève 30% de commission technique.
               </li>
               <li>
-                <strong>Frais de publication uniques (7 500 FCFA)</strong> : Forfait d’inscription unique par roman couvrant la
-                relecture éditoriale, la mise en page numérique sécurisée, l’adaptation de la couverture et la mise en avant initiale.
+                <strong>Pack d’inscription unique (7 500 FCFA)</strong> : Forfait de démarrage comprenant la
+                relecture éditoriale, la mise en page numérique sécurisée, l’adaptation de la couverture et <strong>votre 1er mois d’abonnement inclus</strong>.
               </li>
               <li>
-                <strong>Diffusion multi-supports</strong> : Votre livre est publié sur le site web et dans l’application mobile Android,
-                accessible à tout moment.
+                <strong>Abonnement Auteur (5 000 FCFA / mois)</strong> : Maintien de vos œuvres en ligne, diffusion web & mobile,
+                accès illimité à l'atelier d'écriture et suivi de vos ventes. <em>(Ce montant peut être directement déduit de vos gains de ventes)</em>.
               </li>
               <li>
-                <strong>Protection & Propriété totale</strong> : Vous conservez 100% de vos droits d’auteur. Nous assurons une lecture sécurisée
-                chapitre par chapitre sans piratage.
+                <strong>Diffusion multi-supports</strong> : Votre livre est publié sur le site web et dans l’application mobile Android.
               </li>
               <li>
-                <strong>Versements réguliers</strong> : Paiement automatique de vos gains sur votre compte Mobile Money (Wave ou Orange Money).
+                <strong>Protection & Propriété totale</strong> : Vous conservez 100% de vos droits d’auteur.
+              </li>
+              <li>
+                <strong>Versements réguliers</strong> : Paiement automatique de vos royalties sur votre compte Mobile Money (Wave ou Orange Money).
               </li>
             </ul>
           </div>
@@ -126,14 +128,14 @@ export default function Auteurs() {
                 <strong>Examen éditorial</strong> : Notre comité de lecture analyse votre texte et vous répond sous 48h par e-mail ou WhatsApp.
               </li>
               <li>
-                <strong>Validation & Inscription</strong> : Après accord, vous réglez les frais d’inscription de 7 500 FCFA (via Wave / Orange Money).
+                <strong>Validation & Inscription</strong> : Après accord, vous réglez les frais d’inscription de 7 500 FCFA (1er mois inclus).
               </li>
               <li>
-                <strong>Mise en ligne & Revenus</strong> : Nous préparons la couverture et le découpage, votre livre est publié et vos ventes démarrent.
+                <strong>Mise en ligne & Revenus</strong> : Votre livre est publié, vos ventes démarrent et vous touchez vos 70% de royalties.
               </li>
             </ol>
             <p className="hint" style={{ marginTop: 14 }}>
-              Genres recherchés : Romans d’amour, drames sentimentaux, destins croisés, secrets de famille, thrillers et récits d’inspiration.
+              💡 <strong>Rentabilité rapide</strong> : À raison de 210 FCFA net par chapitre vendu, il suffit d'une vingtaine de chapitres débloqués par mois pour couvrir entièrement votre abonnement.
             </p>
           </div>
         </div>
@@ -141,8 +143,8 @@ export default function Auteurs() {
         <div className="panel" style={{ marginTop: 26 }}>
           <h2>Postuler pour publier un roman</h2>
           <p className="muted" style={{ marginBottom: 20 }}>
-            Complétez ce formulaire pour soumettre votre œuvre. Dès validation éditoriale, les frais d’inscription de 7 500 FCFA
-            activeront la mise en page et la publication officielle.
+            Complétez ce formulaire pour soumettre votre œuvre. Dès validation éditoriale, les frais d’inscription de 7 500 FCFA (1er mois offert)
+            activeront la mise en page et la publication officielle de votre roman.
           </p>
           <form className="form" onSubmit={submit}>
             <div className="form-row">
@@ -237,7 +239,7 @@ export default function Auteurs() {
                 <Link to="/conditions" target="_blank" style={{ color: 'var(--gold, #c9a227)' }}>
                   Conditions de publication
                 </Link>{' '}
-                (frais d'inscription de 7 500 FCFA après validation éditoriale et reversement de 70% des royalties sur les ventes).
+                (frais d'inscription de 7 500 FCFA avec 1er mois inclus, abonnement mensuel de 5 000 FCFA déductible des ventes et reversement de 70% des royalties sur les chapitres vendus).
               </span>
             </label>
 

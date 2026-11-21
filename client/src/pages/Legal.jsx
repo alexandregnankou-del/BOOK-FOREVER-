@@ -77,20 +77,25 @@ export default function Legal({ kind }) {
           </p>
           <ul>
             <li>
-              <strong>Frais d'inscription et de publication :</strong> Pour soumettre une œuvre et accéder aux services de distribution numérique, 
+              <strong>Frais d'inscription et pack de démarrage :</strong> Pour soumettre une œuvre et accéder aux services de distribution numérique, 
               l'auteur s'acquitte d'un forfait unique d'inscription de <strong>7 500 FCFA</strong> par ouvrage (payable après acceptation éditoriale). 
               Ces frais couvrent l'analyse éditoriale, la mise en page numérique sécurisée, l'adaptation de la couverture au format de la plateforme, 
-              le découpage en chapitres et la diffusion sur le site web et l'application mobile.
+              le découpage en chapitres, la diffusion sur le site web et l'application mobile, ainsi que le <strong>premier mois d'abonnement offert</strong>.
+            </li>
+            <li>
+              <strong>Abonnement mensuel de gestion (5 000 FCFA / mois) :</strong> À compter du deuxième mois, un abonnement de 5 000 FCFA par mois 
+              assure le maintien en ligne de l'ouvrage, l'hébergement sécurisé, la promotion continue et l'accès à l'atelier d'écriture ainsi qu'aux statistiques de vente. 
+              Ce montant peut être directement déduit des gains de royalties générés par l'auteur sur le mois en cours.
             </li>
             <li>
               <strong>Répartition des revenus (Royalties) :</strong> Sur chaque vente de chapitre débloqué et payé par les lecteurs (au tarif unitaire de {site.priceXof || 300} FCFA) :
               <ul>
                 <li><strong>70% du montant net</strong> revient directement à l'auteur de l'œuvre.</li>
-                <li><strong>30% de commission</strong> est conservé par {site.siteName} pour couvrir les coûts d'hébergement, la promotion, la maintenance des serveurs et les frais de traitement technique.</li>
+                <li><strong>30% de commission</strong> est conservé par {site.siteName} pour couvrir les coûts d'infrastructure, de traitement des transactions et de gestion.</li>
               </ul>
             </li>
             <li>
-              <strong>Modalités de reversement :</strong> Les gains de l'auteur sont reversés via Mobile Money (Wave ou Orange Money) sur le numéro indiqué par l'auteur, selon une périodicité convenue dès que le solde atteint le seuil minimum de reversement.
+              <strong>Modalités de reversement :</strong> Les gains nets de l'auteur (après déduction éventuelle de l'abonnement mensuel) sont reversés via Mobile Money (Wave ou Orange Money) sur le numéro communiqué par l'auteur, selon une périodicité mensuelle dès que le solde atteint le seuil minimum de reversement.
             </li>
             <li>
               <strong>Propriété des œuvres :</strong> L'auteur reste l'unique et exclusif titulaire de ses droits de propriété intellectuelle. Il accorde à {site.siteName} un droit non exclusif de diffusion numérique.
