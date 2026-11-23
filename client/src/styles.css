@@ -3114,3 +3114,390 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   }
 }
 
+/* ========================================================================== */
+/*           REFONTE PREMIUM DE LA PAGE D'ACCUEIL (UI / UX / Conversion)       */
+/* ========================================================================== */
+
+.home-premium {
+  --night-bg: #0a0e17;
+  --night-surface: #121824;
+  --night-border: rgba(197, 160, 89, 0.25);
+  --gold-accent: #c5a059;
+  --gold-bright: #e2b158;
+}
+
+.eyebrow-gold {
+  color: var(--gold-accent, #c5a059) !important;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero-premium {
+  background: radial-gradient(circle at 75% 25%, #182238 0%, #0a0e17 65%);
+  color: #f5f5f5;
+  padding: 56px 0 44px;
+  border-bottom: 1px solid var(--night-border);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 36px;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-family: var(--serif);
+  line-height: 1.1;
+  margin: 12px 0 16px;
+  color: #ffffff;
+}
+
+.hero-title em {
+  font-style: italic;
+  color: var(--gold-bright, #e2b158);
+}
+
+.hero-subtitle {
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: #cfc6b8;
+  max-width: 580px;
+  margin-bottom: 24px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  font-size: 0.82rem;
+  color: #a89f91;
+}
+
+.hero-book-card {
+  display: flex;
+  justify-content: center;
+  perspective: 1000px;
+}
+
+.hero-cover-img {
+  width: 100%;
+  max-width: 280px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--gold-accent);
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.8), 0 0 25px rgba(197, 160, 89, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hero-cover-img:hover {
+  transform: translateY(-4px) rotateY(-3deg);
+  box-shadow: 0 24px 50px -10px rgba(0, 0, 0, 0.9), 0 0 35px rgba(197, 160, 89, 0.35);
+}
+
+/* Bande de reprise personnalisée */
+.resume-card-premium {
+  background: var(--night-surface, #121824);
+  border: 1px solid var(--gold-accent);
+  border-radius: 12px;
+  padding: 18px 24px;
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  gap: 20px;
+  align-items: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.guest-resume-banner {
+  background: rgba(18, 24, 36, 0.7);
+  border: 1px dashed var(--night-border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Spotlight Roman Phare */
+.spotlight-card-premium {
+  background: var(--night-surface, #121824);
+  border: 1px solid var(--gold-accent);
+  border-radius: 16px;
+  padding: 32px 28px;
+  position: relative;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+.spotlight-badge-top {
+  position: absolute;
+  top: -14px;
+  left: 28px;
+  background: var(--gold-accent, #c5a059);
+  color: #0a0e17;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.spotlight-content-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+.spotlight-cover-main {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(197, 160, 89, 0.4);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+}
+
+.spotlight-title {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  color: #ffffff;
+  margin: 6px 0 4px;
+}
+
+.spotlight-author {
+  font-size: 0.95rem;
+  color: var(--gold-bright, #e2b158);
+  margin-bottom: 12px;
+}
+
+.spotlight-synopsis {
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: #cfc6b8;
+  margin-bottom: 18px;
+}
+
+.citation-box {
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid var(--gold-accent);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 22px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.citation-quote {
+  font-size: 0.92rem;
+  font-style: italic;
+  color: #f5f5f5;
+  line-height: 1.4;
+}
+
+.citation-source {
+  font-size: 0.78rem;
+  color: var(--gold-bright, #e2b158);
+  margin-top: 4px;
+}
+
+.spotlight-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Filtres d'humeur */
+.mood-filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0 32px;
+}
+
+.mood-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ded7cd;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mood-btn:hover {
+  background: rgba(197, 160, 89, 0.12);
+  border-color: var(--gold-accent);
+  color: #ffffff;
+}
+
+.mood-btn.active {
+  background: var(--gold-accent, #c5a059);
+  color: #0a0e17;
+  font-weight: 600;
+  border-color: var(--gold-accent);
+}
+
+/* Teaser / Extrait Chapitre 2 */
+.teaser-card {
+  background: var(--night-surface, #121824);
+  border: 1px solid var(--gold-accent);
+  border-radius: 16px;
+  padding: 32px 28px;
+  text-align: center;
+}
+
+.teaser-preview-box {
+  background: rgba(10, 14, 23, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 20px;
+  position: relative;
+  text-align: left;
+}
+
+.teaser-text-content {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: #f5f5f5;
+  font-family: var(--serif);
+}
+
+.blurred-text {
+  filter: blur(4px);
+  opacity: 0.45;
+  user-select: none;
+  pointer-events: none;
+}
+
+.teaser-overlay-unlock {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px dashed rgba(197, 160, 89, 0.3);
+  text-align: center;
+}
+
+.unlock-badge {
+  display: inline-block;
+  background: rgba(197, 160, 89, 0.15);
+  border: 1px solid var(--gold-accent);
+  color: var(--gold-bright);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 14px;
+}
+
+/* Grille Réassurance */
+.reassurance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.reassurance-card {
+  background: var(--night-surface, #121824);
+  border: 1px solid var(--night-border);
+  border-radius: 12px;
+  padding: 22px 18px;
+  text-align: left;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.reassurance-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold-accent);
+}
+
+.reassurance-icon {
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+}
+
+.reassurance-card h3 {
+  font-size: 1.08rem;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.reassurance-card p {
+  font-size: 0.86rem;
+  color: #a89f91;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Communauté WhatsApp */
+.community-card {
+  background: linear-gradient(135deg, #0d1e15, #121824);
+  border: 1px solid rgba(37, 211, 102, 0.35);
+  border-radius: 16px;
+  padding: 36px 28px;
+  text-align: center;
+}
+
+.community-content h2 {
+  font-size: 1.8rem;
+  color: #ffffff;
+  margin: 8px 0 10px;
+}
+
+.community-content p {
+  color: #cfc6b8;
+  max-width: 580px;
+  margin: 0 auto 20px;
+  font-size: 0.95rem;
+}
+
+/* Adaptations iPhone / Mobile */
+@media (max-width: 768px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .hero-subtitle {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .hero-actions,
+  .hero-badges {
+    justify-content: center;
+  }
+  .spotlight-content-grid {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .spotlight-cover-main {
+    max-width: 220px;
+    margin: 0 auto;
+  }
+  .spotlight-actions {
+    justify-content: center;
+  }
+  .resume-card-premium {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .resume-cover {
+    margin: 0 auto;
+  }
+}
+
+
