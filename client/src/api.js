@@ -45,6 +45,7 @@ export const api = {
   contact: (body) => request('/api/contact', { method: 'POST', body }),
   captureLead: (body) => request('/api/leads', { method: 'POST', body }),
   checkout: (body) => request('/api/payments/checkout', { method: 'POST', body }),
+  guestCheckout: (body) => request('/api/payments/guest-checkout', { method: 'POST', body }),
   share: (body) => request('/api/shares', { method: 'POST', body: { ...body, visitor: visitorId() } }),
   myShares: () => request('/api/shares/mine'),
 

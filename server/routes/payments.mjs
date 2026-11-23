@@ -140,6 +140,56 @@ paymentRoutes.post('/checkout', async (req, res) => {
 });
 
 /**
+ * Commande et micro-paiement direct pour lecteur invité (sans mot de passe requis)
+ */
+paymentRoutes.post('/guest-checkout', async (req, res) => {
+  const { bookSlug, chapterNumber = 3, method = 'wave_link', isFull = false } = req.body || {};
+  const book = db.prepare("SELECT id, title, slug, price_xof FROM books WHERE slug = ? AND status = 'published'").get(bookSlug);
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+
+  const chapter = db.prepare('SELECT id, number, title FROM chapters WHERE book_id = ? AND number = ?').get(book.id, Number(chapterNumber));
+  if (!chapter) return res.status(404).json({ error: 'Chapitre introuvable.' });
+
+  const settings = getSettings();
+  const amount = isFull ? Number(settings.bookFullPrice || 1500) : (chapter.price_xof || Number(settings.priceXof || 300));
+  const hex = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const year = new Date().getFullYear();
+  const reference = isFull ? `BF-FULL-GUEST-${year}-${hex}` : `BF-GUEST-${year}-${hex}`;
+
+  let guestUser = db.prepare("SELECT id FROM users WHERE email = 'guest@book-forever.local'").get();
+  if (!guestUser) {
+    const info = db.prepare("INSERT INTO users (email, password_hash, name, role) VALUES ('guest@book-forever.local', 'GUEST_NO_LOGIN', 'Lecteur Invité', 'reader')").run();
+    guestUser = { id: info.lastInsertRowid };
+  }
+
+  const note = isFull ? `Intégrale invité ${book.title}` : `Chapitre ${chapter.number} invité`;
+  db.prepare(`
+    INSERT INTO orders (reference, user_id, book_id, chapter_id, amount_xof, method, status, note)
+    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+  `).run(reference, guestUser.id, book.id, chapter.id, amount, method, note);
+
+  const waveDirectLink = settings.waveLink || 'https://wave.com/m/M_082F_oB2fT3g';
+  const launchUrl = `${waveDirectLink}?amount=${amount}&memo=${reference}`;
+
+  res.status(201).json({
+    ok: true,
+    order: { reference, amountXof: amount, method, status: 'pending' },
+    launchUrl,
+    instructions: {
+      reference,
+      amountXof: amount,
+      number: settings.orangeNumber || '0706486904',
+      steps: [
+        `Ouvrez Wave ou Orange Money et effectuez un transfert de ${amount} FCFA.`,
+        `Indiquez impérativement la référence « ${reference} » dans le motif/commentaire.`,
+        `Dès réception, votre chapitre se débloque automatiquement sans recharger la page.`,
+      ],
+      url: launchUrl,
+    },
+  });
+});
+
+/**
  * Webhook Wave Business Checkout
  * Événement : checkout.session.completed
  */

@@ -237,6 +237,14 @@ test('Phase 6 - Paiement automatisé & Webhook Wave / CinetPay', async () => {
   const myReceipt = receipts.json.receipts.find((r) => r.reference === ref);
   assert.ok(myReceipt, 'Le reçu automatique doit exister suite au webhook');
   assert.equal(myReceipt.status, 'confirmed');
+  // Test Guest Checkout (visiteur sans compte)
+  const guestRes = await anon('/api/payments/guest-checkout', {
+    method: 'POST',
+    body: { bookSlug: 'amour-perdu', chapterNumber: 3, method: 'wave_link' },
+  });
+  assert.equal(guestRes.status, 201);
+  assert.ok(guestRes.json.order.reference.startsWith('BF-GUEST-'));
+  assert.ok(guestRes.json.launchUrl);
 });
 
 test('Phase 6 - Scripts de Sauvegarde externe et Restauration', () => {

@@ -5,6 +5,8 @@ import { queueOrder, isNetworkFailure } from '../offline.js';
 import { useSession } from '../session.jsx';
 import { useSite } from '../site.jsx';
 import WhatsAppCaptureModal from '../components/WhatsAppCaptureModal.jsx';
+import AdBanner from '../components/AdBanner.jsx';
+import UrgentPaywall from '../components/UrgentPaywall.jsx';
 
 /* Les manuscrits sont arrivés avec des retours à la ligne de mise en page et des
    doubles espaces de justification. Sans ce traitement, chaque ligne devient un
@@ -197,14 +199,12 @@ export default function Reader() {
   }, [user, state, slug, number]);
 
   const startPurchase = async () => {
-    if (!user) {
-      window.location.assign(`/connexion?next=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
     setBusy(true);
     setNotice('');
     try {
-      const res = await api.buy({ bookSlug: slug, chapterNumber: Number(number), method });
+      const res = user
+        ? await api.buy({ bookSlug: slug, chapterNumber: Number(number), method })
+        : await api.guestCheckout({ bookSlug: slug, chapterNumber: Number(number), method });
       setOrder(res);
     } catch (err) {
       setNotice(err.message || 'Impossible de créer la commande.');
@@ -214,14 +214,12 @@ export default function Reader() {
   };
 
   const startFullPurchase = async () => {
-    if (!user) {
-      window.location.assign(`/connexion?next=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
     setBusy(true);
     setNotice('');
     try {
-      const res = await api.buyBookFull({ bookSlug: slug, method });
+      const res = user
+        ? await api.buyBookFull({ bookSlug: slug, method })
+        : await api.guestCheckout({ bookSlug: slug, method, isFull: true });
       setOrder(res);
     } catch (err) {
       setNotice(err.message || 'Impossible de créer la commande intégrale.');
@@ -429,6 +427,18 @@ export default function Reader() {
 
             {!order ? (
               <>
+                {/* Paywall haute conversion avec compte à rebours & micro-achats */}
+                <UrgentPaywall
+                  book={book}
+                  chapter={chapter}
+                  onBuyChapter={startPurchase}
+                  onBuyFull={startFullPurchase}
+                  busy={busy}
+                  user={user}
+                  credits={payload.paywall.credits}
+                  onUnlockCredit={unlockWithCredit}
+                />
+
                 {/* APERÇU DU PANIER / RÉCAPITULATIF DE COMMANDE (Loi 2013-546 & 2016-412) */}
                 <div className="order-summary-card">
                   <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gold, #c9a227)', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -733,6 +743,9 @@ export default function Reader() {
             <p key={i}>{block}</p>
           ))}
         </div>
+
+        {/* Bannière publicitaire monétisée (Adsterra / AdSense / Sponsor) */}
+        {chapter.isFree && <AdBanner />}
 
         <button type="button" className="to-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           ↑ Haut du chapitre
