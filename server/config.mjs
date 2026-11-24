@@ -62,6 +62,15 @@ fs.mkdirSync(path.join(uploadsDir, 'covers'), { recursive: true });
 /* Version affichée par /api/health et par le pied de page : un seul endroit à
    changer pour éviter les libellés contradictoires (l'ancienne page /installer
    annonçait encore « version 20 »). */
+/* Offre de lancement « 20 romans offerts ». Les dates sont en UTC :
+   Abidjan est à l'heure universelle toute l'année, donc pas de décalage. */
+export const CONTEST = {
+  start: process.env.CONTEST_START || '2026-12-01T00:00:00Z',
+  end: process.env.CONTEST_END || '2026-12-19T23:59:59Z',
+  announce: process.env.CONTEST_ANNOUNCE || '2026-12-21T12:00:00Z',
+  directPlaces: Number(process.env.CONTEST_PLACES || 20),
+};
+
 export const APP_VERSION = '1.52.0';
 export const APP_RELEASE = 'v52';
 

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
-import config from './config.mjs';
+import config, { CONTEST } from './config.mjs';
 
 
 export const db = new Database(config.dbFile);
@@ -206,6 +206,23 @@ CREATE TABLE IF NOT EXISTS referrals (
 CREATE INDEX IF NOT EXISTS idx_credit_orders_user ON credit_orders(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_credit_uses_user ON credit_uses(user_id, book_id);
 CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);
+
+/* ---------- v52 : jeu-concours « 20 romans offerts » ---------- */
+CREATE TABLE IF NOT EXISTS contest_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT NOT NULL DEFAULT '',
+  book_slug TEXT NOT NULL DEFAULT '',
+  position INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'direct' CHECK (status IN ('direct','draw','winner','lost')),
+  code TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+/* Un même courriel ne peut s'inscrire qu'une fois. */
+CREATE UNIQUE INDEX IF NOT EXISTS idx_contest_email ON contest_entries(lower(email));
+CREATE INDEX IF NOT EXISTS idx_contest_position ON contest_entries(position);
 
 CREATE INDEX IF NOT EXISTS idx_chapters_book ON chapters(book_id, number);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, status);
@@ -590,4 +607,33 @@ export function bootStats() {
   } catch {
     return { boots: 0, firstBoot: null };
   }
+}
+
+
+/* ---------------------------- Jeu-concours ------------------------------- */
+
+export function contestStats() {
+  const total = db.prepare('SELECT COUNT(*) AS n FROM contest_entries').get().n;
+  const directTaken = db
+    .prepare("SELECT COUNT(*) AS n FROM contest_entries WHERE status = 'direct'")
+    .get().n;
+  return { total, directTaken, remaining: Math.max(0, CONTEST.directPlaces - directTaken) };
+}
+
+export function createContestEntry({ name, email, phone, bookSlug }) {
+  const total = db.prepare('SELECT COUNT(*) AS n FROM contest_entries').get().n;
+  const position = total + 1;
+  const status = position <= CONTEST.directPlaces ? 'direct' : 'draw';
+  /* Code lisible au téléphone : BF10- + 4 caractères + la place. */
+  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const code = `BF10-${suffix}${position}`;
+  db.prepare(
+    `INSERT INTO contest_entries (name, email, phone, book_slug, position, status, code)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(name, email.toLowerCase(), phone, bookSlug, position, status, code);
+  return { position, status, code };
+}
+
+export function listContestEntries() {
+  return db.prepare('SELECT * FROM contest_entries ORDER BY position ASC').all();
 }

@@ -38,6 +38,8 @@ async function request(path, { method = 'GET', body, ...rest } = {}) {
 }
 
 export const api = {
+  contest: () => request('/api/contest'),
+  contestEntry: (body) => request('/api/contest', { method: 'POST', body }),
   site: () => request('/api/site'),
   books: () => request('/api/books'),
   book: (slug) => request(`/api/books/${encodeURIComponent(slug)}`),

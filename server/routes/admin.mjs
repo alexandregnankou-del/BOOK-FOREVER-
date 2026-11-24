@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
-import { db, getSettings, countWords, slugify, uniqueSlug, grantCredits, shareStats } from '../db.mjs';
+import { db, getSettings, countWords, slugify, uniqueSlug, grantCredits, shareStats, listContestEntries, contestStats } from '../db.mjs';
 import { requireAdmin } from '../auth.mjs';
 import config from '../config.mjs';
 
@@ -564,4 +564,25 @@ adminRoutes.post('/authors/:id/reject', (req, res) => {
   if (!user) return res.status(404).json({ error: 'Compte introuvable.' });
   db.prepare("UPDATE users SET author_status = 'rejected' WHERE id = ?").run(user.id);
   res.json({ ok: true });
+});
+
+
+/* -------- Jeu-concours « 20 romans offerts » -------- */
+
+adminRoutes.get('/contest', (req, res) => {
+  res.json({ entries: listContestEntries(), stats: contestStats() });
+});
+
+adminRoutes.get('/contest.csv', (req, res) => {
+  const rows = listContestEntries();
+  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = [
+    ['place', 'statut', 'nom', 'email', 'telephone', 'roman', 'code', 'inscrit_le'].map(esc).join(';'),
+    ...rows.map((r) =>
+      [r.position, r.status, r.name, r.email, r.phone, r.book_slug, r.code, r.created_at].map(esc).join(';'),
+    ),
+  ].join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="concours-20-romans.csv"');
+  res.send(`\uFEFF${csv}`);
 });

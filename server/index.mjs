@@ -9,6 +9,7 @@ import { publicRoutes } from './routes/public.mjs';
 import { authRoutes } from './routes/auth.mjs';
 import { meRoutes } from './routes/me.mjs';
 import { adminRoutes } from './routes/admin.mjs';
+import { contestRoutes } from './routes/contest.mjs';
 
 const app = express();
 app.disable('x-powered-by');
@@ -52,6 +53,7 @@ app.use('/api', publicRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/contest', contestRoutes);
 
 app.get('/api', (req, res) => res.json({ name: 'BOOK FOREVER API', version: APP_VERSION, release: APP_RELEASE }));
 
@@ -175,7 +177,7 @@ const HAS_EXTENSION = /\/[^/]+\.[a-z0-9]{2,5}$/i;
 const SPA_PAGES = new Set([
   '/', '/bibliotheque', '/videos', '/auteurs', '/a-propos', '/telecharger', '/installer',
   '/compte', '/connexion', '/inscription', '/contact', '/regles', '/ecrire',
-  '/conditions', '/confidentialite', '/console',
+  '/conditions', '/confidentialite', '/console', '/jeu',
 ]);
 const SPA_PATTERNS = [/^\/roman\/[a-z0-9-]+$/i, /^\/lire\/[a-z0-9-]+\/\d+$/i, /^\/console(\/[a-z0-9-]+)*$/i];
 const isAppRoute = (p) => SPA_PAGES.has(p) || SPA_PATTERNS.some((re) => re.test(p));

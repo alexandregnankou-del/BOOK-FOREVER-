@@ -21,6 +21,7 @@ import Ecrire from './pages/Ecrire.jsx';
 import Legal from './pages/Legal.jsx';
 import Install from './pages/Install.jsx';
 import Download from './pages/Download.jsx';
+import Contest from './pages/Contest.jsx';
 import Console from './pages/Console.jsx';
 import NotFound from './pages/NotFound.jsx';
 
@@ -44,6 +45,7 @@ export function AppRoutes() {
         <Route path="/confidentialite" element={<Legal kind="privacy" />} />
         <Route path="/installer" element={<Install />} />
         <Route path="/telecharger" element={<Download />} />
+            <Route path="/jeu" element={<Contest />} />
         <Route path="*" element={<NotFound />} />
       </Route>
       <Route path="/lire/:slug/:number" element={<Reader />} />
