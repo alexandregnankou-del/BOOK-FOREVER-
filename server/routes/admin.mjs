@@ -1,7 +1,19 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
-import { db, getSettings, countWords, slugify, uniqueSlug, grantCredits, shareStats, listContestEntries, contestStats } from '../db.mjs';
+import {
+  db,
+  getSettings,
+  countWords,
+  slugify,
+  uniqueSlug,
+  grantCredits,
+  shareStats,
+  generateReceiptForOrder,
+  listAdminClaims,
+  listContestEntries,
+  contestStats,
+} from '../db.mjs';
 import { requireAdmin } from '../auth.mjs';
 import config from '../config.mjs';
 
@@ -488,7 +500,25 @@ adminRoutes.post('/orders/:id/validate', (req, res) => {
                 WHEN 'cinetpay' THEN 'cinetpay' WHEN 'card' THEN 'card' ELSE 'manual' END,
               note = ? WHERE id = ?`)
     .run(String(req.body?.note || 'Validé manuellement après vérification du relevé').slice(0, 300), row.id);
-  res.json({ ok: true, order: db.prepare('SELECT * FROM orders WHERE id = ?').get(row.id) });
+
+  // Phase 6 : Génération automatique du reçu électronique certifié
+  const receipt = generateReceiptForOrder(row.id);
+
+  // Si c'est une commande d'intégrale de roman, débloquer tous les chapitres du livre
+  if (row.note && row.note.includes('Intégrale')) {
+    const allChapters = db.prepare("SELECT id FROM chapters WHERE book_id = ? AND is_free = 0 AND status = 'published'").all(row.book_id);
+    for (const ch of allChapters) {
+      if (ch.id !== row.chapter_id) {
+        db.prepare(`
+          INSERT INTO orders (reference, user_id, book_id, chapter_id, amount_xof, method, status, validated_at, expires_at, note)
+          VALUES (?, ?, ?, ?, 0, ?, 'paid', CURRENT_TIMESTAMP, date('now', '+${accessDays} days'), 'Inclus dans Intégrale')
+          ON CONFLICT(reference) DO UPDATE SET status = 'paid', validated_at = CURRENT_TIMESTAMP, expires_at = date('now', '+${accessDays} days')
+        `).run(`${row.reference}-CH${ch.id}`, row.user_id, row.book_id, ch.id, row.method);
+      }
+    }
+  }
+
+  res.json({ ok: true, order: db.prepare('SELECT * FROM orders WHERE id = ?').get(row.id), receipt });
 });
 
 adminRoutes.post('/orders/:id/reject', (req, res) => {
@@ -504,7 +534,38 @@ adminRoutes.post('/orders/:id/refund', (req, res) => {
   if (!row) return res.status(404).json({ error: 'Commande introuvable.' });
   db.prepare("UPDATE orders SET status = 'refunded', note = ? WHERE id = ?")
     .run(String(req.body?.note || 'Remboursé').slice(0, 300), row.id);
+  
+  // Met à jour le reçu associé
+  db.prepare("UPDATE receipts SET status = 'refunded' WHERE order_id = ?").run(row.id);
+  
   res.json({ ok: true });
+});
+
+/* -------------------------------- Réclamations ------------------------------- */
+
+adminRoutes.get('/claims', (req, res) => {
+  const status = String(req.query.status || '');
+  const rows = listAdminClaims(status);
+  res.json({ claims: rows });
+});
+
+adminRoutes.patch('/claims/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const row = db.prepare('SELECT * FROM claims WHERE id = ?').get(id);
+  if (!row) return res.status(404).json({ error: 'Dossier de réclamation introuvable.' });
+
+  const allowedStatuses = ['OUVERT', 'EN_COURS', 'EN_ATTENTE', 'RESOLU', 'FERME'];
+  const status = allowedStatuses.includes(req.body?.status) ? req.body.status : row.status;
+  const adminReply = req.body?.adminReply != null ? String(req.body.adminReply).slice(0, 5000) : row.admin_reply;
+  const resolvedAt = ['RESOLU', 'FERME'].includes(status) ? new Date().toISOString() : row.resolved_at;
+
+  db.prepare(`
+    UPDATE claims
+    SET status = ?, admin_reply = ?, updated_at = CURRENT_TIMESTAMP, resolved_at = ?
+    WHERE id = ?
+  `).run(status, adminReply, resolvedAt, id);
+
+  res.json({ claim: db.prepare('SELECT * FROM claims WHERE id = ?').get(id) });
 });
 
 /* --------------------------------- Réglages -------------------------------- */

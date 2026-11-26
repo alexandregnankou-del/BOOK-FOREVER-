@@ -80,7 +80,7 @@ test('santé de l’API', async () => {
 test('catalogue : romans publiés, tous les chapitres publiés, 2 offerts par roman', async () => {
   const { status, json } = await anon('/api/books');
   assert.equal(status, 200);
-  assert.ok(json.books.length >= 4, 'au moins quatre romans publiés');
+  assert.ok(json.books.length >= 4);
   assert.ok(
     json.books.some((book) => book.slug === 'si-je-t-aimais-au-present'),
     'le roman adapté de la BD doit être publié',
@@ -539,23 +539,15 @@ test('v53 — suppression refusée sur un chapitre déjà acheté', async () => 
   assert.equal(refus.json.revenue, 300);
   assert.equal(refus.json.paid, 1);
 
-  // Le chapitre est toujours là…
   const apres = await admin(`/api/admin/books/${book.id}/chapters`);
-  assert.ok(
-    apres.json.chapters.some((c) => c.id === vendu.id),
-    'le chapitre acheté doit toujours exister',
-  );
+  assert.ok(apres.json.chapters.some((c) => c.id === vendu.id), 'le chapitre acheté doit toujours exister');
 
-  // …et l'acheteur n'a rien perdu.
   const acces = await reader('/api/books/les-larmes-d-une-plume/chapters/3');
   assert.equal(acces.status, 200);
   assert.equal(acces.json.locked, false);
 
   const achats = await reader('/api/me/purchases');
-  assert.ok(
-    achats.json.purchases.some((p) => p.status === 'paid'),
-    'la commande payée doit subsister',
-  );
+  assert.ok(achats.json.purchases.some((p) => p.status === 'paid'), 'la commande payée doit subsister');
 });
 
 test('v53 — archivage : le chapitre quitte le catalogue sans rien effacer', async () => {
@@ -563,7 +555,6 @@ test('v53 — archivage : le chapitre quitte le catalogue sans rien effacer', as
   const chapters = await admin(`/api/admin/books/${book.id}/chapters`);
   const vendu = chapters.json.chapters.find((c) => c.number === 3);
 
-  // Texte de référence, lu par l'acheteur avant l'archivage.
   const avant = await reader('/api/books/les-larmes-d-une-plume/chapters/3');
   const texteAvant = avant.json.chapter.text;
   assert.ok(texteAvant.length > 0);
@@ -578,15 +569,12 @@ test('v53 — archivage : le chapitre quitte le catalogue sans rien effacer', as
   assert.equal(archive.json.chapter.archived_reason, 'test automatisé');
   assert.equal(archive.json.chapter.text, texteAvant, 'le texte est intact');
 
-  // Invisible pour le public…
   const publicMasque = await anon('/api/books/les-larmes-d-une-plume/chapters/3');
   assert.equal(publicMasque.status, 404);
 
-  // …mais la commande de l'acheteur est toujours enregistrée.
   const achats = await reader('/api/me/purchases');
   assert.ok(achats.json.purchases.some((p) => p.chapter?.number === 3 && p.status === 'paid'));
 
-  // Restauration : on désarchive, puis on republie.
   const desarchive = await admin(`/api/admin/chapters/${vendu.id}/unarchive`, { method: 'POST' });
   assert.equal(desarchive.status, 200);
   assert.equal(desarchive.json.chapter.archived_at, null);
@@ -598,7 +586,6 @@ test('v53 — archivage : le chapitre quitte le catalogue sans rien effacer', as
   });
   assert.equal(republie.status, 200);
 
-  // L'acheteur retrouve son accès, sans avoir rien repayé.
   const acces = await reader('/api/books/les-larmes-d-une-plume/chapters/3');
   assert.equal(acces.status, 200);
   assert.equal(acces.json.locked, false);

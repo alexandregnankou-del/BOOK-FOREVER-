@@ -45,6 +45,9 @@ export const api = {
   book: (slug) => request(`/api/books/${encodeURIComponent(slug)}`),
   chapter: (slug, number) => request(`/api/books/${encodeURIComponent(slug)}/chapters/${number}`),
   contact: (body) => request('/api/contact', { method: 'POST', body }),
+  captureLead: (body) => request('/api/leads', { method: 'POST', body }),
+  checkout: (body) => request('/api/payments/checkout', { method: 'POST', body }),
+  guestCheckout: (body) => request('/api/payments/guest-checkout', { method: 'POST', body }),
   share: (body) => request('/api/shares', { method: 'POST', body: { ...body, visitor: visitorId() } }),
   myShares: () => request('/api/shares/mine'),
 
@@ -56,6 +59,7 @@ export const api = {
 
   purchases: () => request('/api/me/purchases'),
   buy: (body) => request('/api/me/purchases', { method: 'POST', body }),
+  buyBookFull: (body) => request('/api/me/purchases/book', { method: 'POST', body }),
   progress: () => request('/api/me/progress'),
   saveProgress: (body) => request('/api/me/progress', { method: 'POST', body }),
   overview: () => request('/api/me/overview'),
@@ -83,6 +87,14 @@ export const api = {
   addFavorite: (bookSlug) => request('/api/me/favorites', { method: 'POST', body: { bookSlug } }),
   removeFavorite: (slug) => request(`/api/me/favorites/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
 
+  receipts: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([_, v]) => Boolean(v))).toString();
+    return request(`/api/me/receipts${qs ? `?${qs}` : ''}`);
+  },
+  receipt: (id) => request(`/api/me/receipts/${id}`),
+  claims: () => request('/api/me/claims'),
+  createClaim: (body) => request('/api/me/claims', { method: 'POST', body }),
+
   admin: {
     stats: () => request('/api/admin/stats'),
     books: () => request('/api/admin/books'),
@@ -101,6 +113,8 @@ export const api = {
     validateOrder: (id, note) => request(`/api/admin/orders/${id}/validate`, { method: 'POST', body: { note } }),
     rejectOrder: (id, note) => request(`/api/admin/orders/${id}/reject`, { method: 'POST', body: { note } }),
     refundOrder: (id, note) => request(`/api/admin/orders/${id}/refund`, { method: 'POST', body: { note } }),
+    claims: (status) => request(`/api/admin/claims${status ? `?status=${status}` : ''}`),
+    updateClaim: (id, body) => request(`/api/admin/claims/${id}`, { method: 'PATCH', body }),
     settings: () => request('/api/admin/settings'),
     saveSettings: (body) => request('/api/admin/settings', { method: 'PATCH', body }),
     users: () => request('/api/admin/users'),

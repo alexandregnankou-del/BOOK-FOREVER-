@@ -150,20 +150,17 @@ export default function BookPage() {
             <EmojiBar slug={book.slug} audience={data.audience} />
           </section>
           {first && (
-            <div style={{ marginTop: 24 }}>
+            <div style={{ marginTop: 24, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               <Link to={`/lire/${book.slug}/${first.number}`} className="btn btn-gold">
                 Lire le premier chapitre
               </Link>
-              {pdfReady && (
-                <a
-                  href={`/download/${book.slug}.pdf`}
-                  className="btn btn-ghost"
-                  style={{ marginLeft: 10 }}
-                  download
-                >
-                  Télécharger le PDF
-                </a>
-              )}
+              <Link
+                to={`/lire/${book.slug}/${chapters.find((c) => !c.isFree)?.number || 3}`}
+                className="btn btn-ghost"
+                style={{ borderColor: 'var(--gold, #c9a227)', color: 'var(--gold, #c9a227)' }}
+              >
+                ⚡ Roman complet (1 500 FCFA)
+              </Link>
             </div>
           )}
         </div>

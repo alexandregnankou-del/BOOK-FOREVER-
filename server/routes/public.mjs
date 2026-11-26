@@ -11,7 +11,9 @@ import {
   ensureReferralCode,
   recordShare,
   shareStats,
+  saveLead,
 } from '../db.mjs';
+import { normalizeIvorianPhone } from './payments.mjs';
 import { currentUser } from '../auth.mjs';
 import { config, APP_VERSION, APP_RELEASE } from '../config.mjs';
 import { bootStats } from '../db.mjs';
@@ -236,6 +238,28 @@ publicRoutes.get('/books/:slug/chapters/:number', (req, res) => {
 
 /* Un visiteur peut écrire, mais pas inonder la boîte : 5 messages par quart d'heure. */
 const contactLimiter = rateLimiter({ name: 'contact', windowMs: 15 * 60 * 1000, max: 5 });
+
+/* ---------- Capture de contact WhatsApp avant lecture gratuite ---------- */
+publicRoutes.post('/leads', (req, res) => {
+  const phone = normalizeIvorianPhone(req.body?.phone);
+  if (!phone) {
+    return res.status(400).json({
+      error: 'Numéro WhatsApp ivoirien invalide. Il doit comporter 10 chiffres et commencer par 01, 05 ou 07.',
+    });
+  }
+
+  const bookSlug = String(req.body?.bookSlug || '').slice(0, 100);
+  const source = String(req.body?.source || 'chapter1_gate').slice(0, 50);
+  const ip = req.ip || '';
+
+  const lead = saveLead({ phone, source, bookSlug, ip });
+  res.status(201).json({
+    ok: true,
+    phone,
+    message: 'Numéro enregistré. Votre accès gratuit est débloqué !',
+    lead,
+  });
+});
 
 publicRoutes.post('/contact', contactLimiter, (req, res) => {
   const name = String(req.body?.name || '').trim();

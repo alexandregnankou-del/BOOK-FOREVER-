@@ -10,6 +10,7 @@ import { authRoutes } from './routes/auth.mjs';
 import { meRoutes } from './routes/me.mjs';
 import { adminRoutes } from './routes/admin.mjs';
 import { contestRoutes } from './routes/contest.mjs';
+import { paymentRoutes } from './routes/payments.mjs';
 
 const app = express();
 app.disable('x-powered-by');
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contest', contestRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.get('/api', (req, res) => res.json({ name: 'BOOK FOREVER API', version: APP_VERSION, release: APP_RELEASE }));
 
@@ -76,8 +78,8 @@ app.get('/sitemap.xml', (req, res) => {
   const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const pages = [
     ['/', '1.0'], ['/bibliotheque', '0.9'], ['/videos', '0.7'], ['/auteurs', '0.7'], ['/a-propos', '0.5'],
-    ['/telecharger', '0.8'], ['/contact', '0.4'], ['/regles', '0.3'],
-    ['/conditions', '0.2'], ['/confidentialite', '0.2'],
+    ['/telecharger', '0.8'], ['/contact', '0.4'], ['/reclamations', '0.4'], ['/regles', '0.3'],
+    ['/cgv', '0.3'], ['/mentions-legales', '0.3'], ['/conditions', '0.2'], ['/confidentialite', '0.2'],
   ];
   const books = db.prepare("SELECT slug, updated_at FROM books WHERE status = 'published' ORDER BY sort_order, id").all();
   const urls = [
@@ -175,9 +177,9 @@ const HAS_EXTENSION = /\/[^/]+\.[a-z0-9]{2,5}$/i;
 /* Routes réelles de l'application. Tout le reste doit répondre 404 : sinon
    Google indexe des adresses inexistantes comme de vraies pages (soft 404). */
 const SPA_PAGES = new Set([
-  '/', '/bibliotheque', '/videos', '/auteurs', '/a-propos', '/telecharger', '/installer',
+  '/', '/bibliotheque', '/videos', '/auteurs', '/devenir-auteur', '/espace-auteur', '/a-propos', '/telecharger', '/installer',
   '/compte', '/connexion', '/inscription', '/contact', '/regles', '/ecrire',
-  '/conditions', '/confidentialite', '/console', '/jeu',
+  '/conditions', '/confidentialite', '/mentions-legales', '/cgv', '/reclamations', '/assistance', '/console', '/jeu',
 ]);
 const SPA_PATTERNS = [/^\/roman\/[a-z0-9-]+$/i, /^\/lire\/[a-z0-9-]+\/\d+$/i, /^\/console(\/[a-z0-9-]+)*$/i];
 const isAppRoute = (p) => SPA_PAGES.has(p) || SPA_PATTERNS.some((re) => re.test(p));

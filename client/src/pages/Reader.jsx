@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, formatXof, whatsappHref } from '../api.js';
 import { queueOrder, isNetworkFailure } from '../offline.js';
 import { useSession } from '../session.jsx';
 import { useSite } from '../site.jsx';
+import WhatsAppCaptureModal from '../components/WhatsAppCaptureModal.jsx';
+import AdBanner from '../components/AdBanner.jsx';
+import UrgentPaywall from '../components/UrgentPaywall.jsx';
 
 /* Les manuscrits sont arrivés avec des retours à la ligne de mise en page et des
    doubles espaces de justification. Sans ce traitement, chaque ligne devient un
@@ -83,6 +86,7 @@ function cachedChapter(slug, number) {
 
 export default function Reader() {
   const { slug, number } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useSession();
   const site = useSite();
@@ -95,6 +99,13 @@ export default function Reader() {
   const [tocOpen, setTocOpen] = useState(false);
   const [tocItems, setTocItems] = useState([]);
   const [tocLoading, setTocLoading] = useState(false);
+  const [showWhatsApp, setShowWhatsApp] = useState(() => {
+    try {
+      return Number(number) === 1 && !localStorage.getItem('bf_whatsapp') && !localStorage.getItem('bf_whatsapp_skip');
+    } catch {
+      return false;
+    }
+  });
   const audioRef = useRef(null);
   const [shareNote, setShareNote] = useState('');
   const saved = useRef(0);
@@ -188,26 +199,46 @@ export default function Reader() {
   }, [user, state, slug, number]);
 
   const startPurchase = async () => {
-    if (!user) {
-      navigate(`/connexion?next=${encodeURIComponent(`/lire/${slug}/${number}`)}`);
-      return;
-    }
     setBusy(true);
     setNotice('');
     try {
-      const res = await api.buy({ bookSlug: slug, chapterNumber: Number(number), method });
+      const res = user
+        ? await api.buy({ bookSlug: slug, chapterNumber: Number(number), method })
+        : await api.guestCheckout({ bookSlug: slug, chapterNumber: Number(number), method });
       setOrder(res);
     } catch (err) {
-      if (err.status === 409) {
-        setNotice('Ce chapitre est déjà débloqué. Rechargez la page.');
-      } else if (isNetworkFailure(err)) {
-        queueOrder({ bookSlug: slug, chapterNumber: Number(number), method });
-        setNotice(
-          'Hors ligne : votre paiement est enregistré. Il partira dès le retour du réseau.',
-        );
-      } else {
-        setNotice(err.message);
+      setNotice(err.message || 'Impossible de créer la commande.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startFullPurchase = async () => {
+    setBusy(true);
+    setNotice('');
+    try {
+      const res = user
+        ? await api.buyBookFull({ bookSlug: slug, method })
+        : await api.guestCheckout({ bookSlug: slug, method, isFull: true });
+      setOrder(res);
+    } catch (err) {
+      setNotice(err.message || 'Impossible de créer la commande intégrale.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAutoCheckout = async (provider = 'wave') => {
+    if (!order?.order?.reference) return;
+    setBusy(true);
+    setNotice('');
+    try {
+      const res = await api.checkout({ reference: order.order.reference, provider });
+      if (res?.launchUrl) {
+        window.location.assign(res.launchUrl);
       }
+    } catch (err) {
+      setNotice(err.message || 'Paiement automatique indisponible. Utilisez le lien ou le numéro ci-dessous.');
     } finally {
       setBusy(false);
     }
@@ -388,39 +419,110 @@ export default function Reader() {
 
         <div className="paywall">
           <div className="paywall-card">
-            <span className="eyebrow">Chapitre {chapter.number}</span>
-            <h1>{payload.paywall.title}</h1>
+            <span className="eyebrow">Commande & Déblocage</span>
+            <h1>{chapter.title}</h1>
             <p className="muted">
-              {chapter.title} — {formatXof(chapter.priceXof)}. Déblocage définitif sur votre compte, à relire
-              autant de fois que vous voulez.
+              {book.title} — Chapitre {chapter.number}
             </p>
 
             {!order ? (
               <>
-                <div className="methods">
-                  <button
-                    type="button"
-                    className={`method ${method === 'wave_link' ? 'selected' : ''}`}
-                    onClick={() => setMethod('wave_link')}
-                    disabled={!waveOn}
-                  >
-                    <strong>Wave</strong>
-                    <span>{waveOn ? 'Lien marchand ADISEN HOUSE' : 'Indisponible'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`method ${method === 'orange_money_direct' ? 'selected' : ''}`}
-                    onClick={() => setMethod('orange_money_direct')}
-                    disabled={!orangeOn}
-                  >
-                    <strong>Orange Money</strong>
-                    <span>{orangeOn ? site.orangeNumber : 'Indisponible'}</span>
-                  </button>
+                {/* Paywall haute conversion avec compte à rebours & micro-achats */}
+                <UrgentPaywall
+                  book={book}
+                  chapter={chapter}
+                  onBuyChapter={startPurchase}
+                  onBuyFull={startFullPurchase}
+                  busy={busy}
+                  user={user}
+                  credits={payload.paywall.credits}
+                  onUnlockCredit={unlockWithCredit}
+                />
+
+                {/* APERÇU DU PANIER / RÉCAPITULATIF DE COMMANDE (Loi 2013-546 & 2016-412) */}
+                <div className="order-summary-card">
+                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gold, #c9a227)', textTransform: 'uppercase', marginBottom: 8 }}>
+                    Aperçu de votre commande
+                  </div>
+                  <div className="order-summary-row">
+                    <span>Ouvrage & Chapitre</span>
+                    <strong>{book.title} (Ch. {chapter.number})</strong>
+                  </div>
+                  <div className="order-summary-row">
+                    <span>Prix unitaire</span>
+                    <span>{formatXof(chapter.priceXof)}</span>
+                  </div>
+                  <div className="order-summary-row">
+                    <span>Durée de lecture</span>
+                    <span style={{ color: '#10b981', fontWeight: 600 }}>Accès temporaire : 30 jours</span>
+                  </div>
+                  <div className="order-summary-row">
+                    <span>Frais supplémentaires</span>
+                    <span>0 FCFA</span>
+                  </div>
+                  <div className="order-summary-row total">
+                    <span>Total à payer</span>
+                    <span>{formatXof(chapter.priceXof)}</span>
+                  </div>
                 </div>
-                {notice && <div className="alert error">{notice}</div>}
-                <button type="button" className="btn btn-gold btn-block" onClick={startPurchase} disabled={busy}>
-                  {busy ? 'Préparation…' : user ? `Débloquer pour ${formatXof(chapter.priceXof)}` : 'Se connecter pour débloquer'}
-                </button>
+
+                <div style={{ marginTop: 16 }}>
+                  <label style={{ display: 'block', fontSize: '0.86rem', color: '#ded7cd', marginBottom: 8, fontWeight: 600 }}>
+                    1. Choisissez votre moyen de paiement :
+                  </label>
+                  <div className="methods">
+                    <button
+                      type="button"
+                      className={`method ${method === 'wave_link' ? 'selected' : ''}`}
+                      onClick={() => setMethod('wave_link')}
+                      disabled={!waveOn}
+                    >
+                      <strong>Wave</strong>
+                      <span>{waveOn ? 'Lien marchand direct' : 'Indisponible'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`method ${method === 'orange_money_direct' ? 'selected' : ''}`}
+                      onClick={() => setMethod('orange_money_direct')}
+                      disabled={!orangeOn}
+                    >
+                      <strong>Orange Money</strong>
+                      <span>{orangeOn ? site.orangeNumber : 'Indisponible'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {notice && <div className="alert error" style={{ marginTop: 12 }}>{notice}</div>}
+
+                <div style={{ marginTop: 16 }}>
+                  <p className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.45, marginBottom: 12 }}>
+                    En validant, vous recevrez un <strong>accusé de réception électronique</strong> avec votre référence unique,
+                    puis un <strong>reçu officiel téléchargeable</strong> dès confirmation du paiement.
+                  </p>
+                  
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <button type="button" className="btn btn-gold btn-block" onClick={startPurchase} disabled={busy}>
+                      {busy ? 'Préparation…' : user ? `1. Débloquer ce chapitre (${formatXof(chapter.priceXof)})` : 'Se connecter pour commander'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-block"
+                      style={{
+                        background: 'linear-gradient(135deg, #c9a227, #9b7a1c)',
+                        color: '#14110e',
+                        fontWeight: 700,
+                        border: 'none',
+                        padding: '12px 16px',
+                        cursor: 'pointer',
+                      }}
+                      onClick={startFullPurchase}
+                      disabled={busy}
+                    >
+                      ⚡ 2. Débloquer TOUT le roman — 1 500 FCFA (Économisez 66%)
+                    </button>
+                  </div>
+                </div>
 
                 {user && (payload.paywall.credits || 0) > 0 && (
                   <button
@@ -435,9 +537,9 @@ export default function Reader() {
                   </button>
                 )}
 
-                <p className="muted" style={{ fontSize: '0.78rem', marginTop: 12 }}>
-                  Aucun prélèvement automatique. Le chapitre s’ouvre après vérification du paiement (moins de 30
-                  min en journée), puis reste accessible {payload.paywall.accessDays || 30} jours.
+                <p className="muted" style={{ fontSize: '0.78rem', marginTop: 14, textAlign: 'center' }}>
+                  Conforme aux <Link to="/cgv" target="_blank">Conditions Générales de Vente</Link> et aux{' '}
+                  <Link to="/mentions-legales" target="_blank">Mentions Légales</Link>.
                 </p>
 
                 {payload.paywall.offers && (
@@ -460,18 +562,43 @@ export default function Reader() {
               </>
             ) : (
               <div className="instructions">
-                <strong>Référence à indiquer :</strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gold, #c9a227)', marginBottom: 8 }}>
+                  <span style={{ fontSize: '1.2rem' }}>📋</span>
+                  <strong>Accusé de réception de commande</strong>
+                </div>
+                <p className="muted" style={{ fontSize: '0.85rem', margin: '0 0 10px' }}>
+                  Votre commande a bien été enregistrée. Effectuez votre règlement avec les instructions ci-dessous :
+                </p>
                 <div className="reference">{order.instructions.reference}</div>
-                {order.reused && <p className="muted">Vous aviez déjà une demande en cours pour ce chapitre.</p>}
+                {order.reused && <p className="muted">Vous aviez déjà une commande en attente pour ce chapitre.</p>}
                 <ol>
                   {order.instructions.steps.map((step, i) => (
                     <li key={i}>{step}</li>
                   ))}
                 </ol>
+                <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-gold btn-sm"
+                    onClick={() => handleAutoCheckout('wave')}
+                    disabled={busy}
+                  >
+                    ⚡ Payer en 1 clic avec Wave
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => handleAutoCheckout('cinetpay')}
+                    disabled={busy}
+                  >
+                    💳 Payer en ligne (CinetPay / Orange / Moov / MTN / Carte)
+                  </button>
+                </div>
+
                 {order.instructions.url && (
                   <p style={{ marginTop: 12 }}>
-                    <a href={order.instructions.url} target="_blank" rel="noreferrer" className="btn btn-gold btn-sm">
-                      Ouvrir la page Wave
+                    <a href={order.instructions.url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+                      Ouvrir la page Wave directe
                     </a>
                   </p>
                 )}
@@ -487,9 +614,14 @@ export default function Reader() {
                     </a>
                   </p>
                 )}
-                <p className="muted" style={{ fontSize: '0.8rem' }}>
-                  Gardez cette référence : elle relie votre paiement à votre compte. Votre demande apparaît aussi
-                  dans <Link to="/compte">Mon compte → Achats</Link>.
+                <p className="muted" style={{ fontSize: '0.8rem', marginTop: 14 }}>
+                  💡 Dès validation serveur, votre reçu électronique officiel sera disponible dans{' '}
+                  <Link to="/compte">Mon compte → Mes reçus</Link> et le chapitre s'ouvrira immédiatement.
+                </p>
+                <p style={{ marginTop: 10, textAlign: 'center' }}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOrder(null)}>
+                    ← Modifier ou corriger la commande
+                  </button>
                 </p>
               </div>
             )}
@@ -612,6 +744,9 @@ export default function Reader() {
           ))}
         </div>
 
+        {/* Bannière publicitaire monétisée (Adsterra / AdSense / Sponsor) */}
+        {chapter.isFree && <AdBanner />}
+
         <button type="button" className="to-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           ↑ Haut du chapitre
         </button>
@@ -636,6 +771,13 @@ export default function Reader() {
         </div>
         <p className="reader-protect">Texte protégé · reproduction interdite</p>
       </article>
+
+      {showWhatsApp && (
+        <WhatsAppCaptureModal
+          bookSlug={slug}
+          onUnlocked={() => setShowWhatsApp(false)}
+        />
+      )}
     </div>
   );
 }

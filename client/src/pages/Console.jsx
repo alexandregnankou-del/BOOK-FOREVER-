@@ -8,6 +8,7 @@ import Messages from '../console/Messages.jsx';
 import Orders from '../console/Orders.jsx';
 import Subs from '../console/Subs.jsx';
 import Settings from '../console/Settings.jsx';
+import ConsoleClaims from '../console/Claims.jsx';
 import { api } from '../api.js';
 
 const TABS = [
@@ -16,6 +17,7 @@ const TABS = [
   ['audience', 'Audience'],
   ['messages', 'Messages'],
   ['orders', 'Ventes'],
+  ['claims', 'Réclamations & SAV'],
   ['subs', 'Abonnements & auteurs'],
   ['settings', 'Réglages'],
 ];
@@ -92,6 +94,7 @@ export default function Console() {
         {tab === 'audience' && <Audience />}
         {tab === 'messages' && <Messages />}
         {tab === 'orders' && <Orders />}
+        {tab === 'claims' && <ConsoleClaims />}
         {tab === 'subs' && <Subs />}
         {tab === 'settings' && <Settings />}
       </main>

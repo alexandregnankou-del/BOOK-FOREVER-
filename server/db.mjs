@@ -224,6 +224,61 @@ CREATE TABLE IF NOT EXISTS contest_entries (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_contest_email ON contest_entries(lower(email));
 CREATE INDEX IF NOT EXISTS idx_contest_position ON contest_entries(position);
 
+/* ---------- Phase 6 : reçus électroniques et service client / réclamations ---------- */
+CREATE TABLE IF NOT EXISTS receipts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  receipt_number TEXT NOT NULL UNIQUE,
+  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reference TEXT NOT NULL,
+  book_title TEXT NOT NULL,
+  book_slug TEXT NOT NULL,
+  chapter_number INTEGER NOT NULL,
+  chapter_title TEXT NOT NULL,
+  amount_xof INTEGER NOT NULL DEFAULT 300,
+  currency TEXT NOT NULL DEFAULT 'XOF',
+  payment_method TEXT NOT NULL DEFAULT 'wave_link',
+  status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed','expired','refunded')),
+  access_type TEXT NOT NULL DEFAULT 'chapter_30d',
+  confirmed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  access_starts_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipts_user ON receipts(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_receipts_ref ON receipts(reference);
+CREATE INDEX IF NOT EXISTS idx_receipts_number ON receipts(receipt_number);
+
+CREATE TABLE IF NOT EXISTS claims (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  claim_number TEXT NOT NULL UNIQUE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  order_reference TEXT NOT NULL DEFAULT '',
+  subject TEXT NOT NULL DEFAULT '',
+  message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'OUVERT' CHECK (status IN ('OUVERT','EN_COURS','EN_ATTENTE','RESOLU','FERME')),
+  admin_reply TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  resolved_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_claims_user ON claims(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status, created_at);
+
+/* ---------- Table des leads WhatsApp capturés avant lecture gratuite ---------- */
+CREATE TABLE IF NOT EXISTS leads (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'chapter1_gate',
+  book_slug TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(phone);
+
 CREATE INDEX IF NOT EXISTS idx_chapters_book ON chapters(book_id, number);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_orders_pending ON orders(status, created_at);
@@ -291,6 +346,9 @@ export const DEFAULT_SETTINGS = {
   passDays: '7',
   packPrice: '1200',
   packCredits: '5',
+  vipPrice: '5000',
+  vipDays: '30',
+  bookFullPrice: '1500',
   accessDays: '30',
   referralTarget: '3',
   referralReward: '1',
@@ -367,6 +425,8 @@ export function publicSite() {
       monthly: { priceXof: numberOr(s.monthlyPrice, 2000), days: numberOr(s.monthlyDays, 30) },
       pass: { priceXof: numberOr(s.passPrice, 500), days: numberOr(s.passDays, 7) },
       pack: { priceXof: numberOr(s.packPrice, 1200), credits: numberOr(s.packCredits, 5) },
+      vip: { priceXof: numberOr(s.vipPrice, 5000), days: numberOr(s.vipDays, 30) },
+      bookFull: { priceXof: numberOr(s.bookFullPrice, 1500) },
       referral: { target: numberOr(s.referralTarget, 3), reward: numberOr(s.referralReward, 1) },
     },
   };
@@ -387,6 +447,8 @@ export function offerList() {
     monthly: site.offers.monthly,
     pass: site.offers.pass,
     pack: site.offers.pack,
+    vip: site.offers.vip,
+    bookFull: site.offers.bookFull,
     referral: site.offers.referral,
   };
 }
@@ -639,4 +701,140 @@ export function createContestEntry({ name, email, phone, bookSlug }) {
 
 export function listContestEntries() {
   return db.prepare('SELECT * FROM contest_entries ORDER BY position ASC').all();
+}
+
+/* -------------------------------------------------------------------------- */
+/*                     Phase 6 : Reçus et Réclamations                        */
+/* -------------------------------------------------------------------------- */
+
+export function generateReceiptForOrder(orderId) {
+  const order = db
+    .prepare(`
+      SELECT o.*, b.title AS book_title, b.slug AS book_slug,
+             c.number AS chapter_number, c.title AS chapter_title,
+             u.id AS user_id, u.email AS user_email, u.name AS user_name
+      FROM orders o
+      JOIN books b ON b.id = o.book_id
+      JOIN chapters c ON c.id = o.chapter_id
+      JOIN users u ON u.id = o.user_id
+      WHERE o.id = ?`)
+    .get(orderId);
+  if (!order) return null;
+
+  const existing = db.prepare('SELECT * FROM receipts WHERE order_id = ?').get(orderId);
+  if (existing) return existing;
+
+  const year = new Date().getFullYear();
+  const hex = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const receiptNumber = `BF-REC-${year}-${String(order.id).padStart(4, '0')}-${hex}`;
+  const confirmedAt = order.validated_at || new Date().toISOString();
+  const accessStartsAt = confirmedAt;
+  const accessDays = Math.max(1, Number(getSettings().accessDays) || 30);
+  const expiresAt =
+    order.expires_at ||
+    new Date(new Date(confirmedAt).getTime() + accessDays * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+  db.prepare(`
+    INSERT INTO receipts (
+      receipt_number, order_id, user_id, reference, book_title, book_slug,
+      chapter_number, chapter_title, amount_xof, currency, payment_method,
+      status, access_type, confirmed_at, access_starts_at, expires_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'XOF', ?, 'confirmed', 'chapter_30d', ?, ?, ?)
+  `).run(
+    receiptNumber,
+    order.id,
+    order.user_id,
+    order.reference,
+    order.book_title,
+    order.book_slug,
+    order.chapter_number,
+    order.chapter_title,
+    order.amount_xof,
+    order.method,
+    confirmedAt,
+    accessStartsAt,
+    expiresAt,
+  );
+
+  return db.prepare('SELECT * FROM receipts WHERE receipt_number = ?').get(receiptNumber);
+}
+
+export function listUserReceipts(userId, status = '', search = '') {
+  let query = 'SELECT * FROM receipts WHERE user_id = ?';
+  const params = [userId];
+
+  if (status && ['confirmed', 'expired', 'refunded'].includes(status)) {
+    query += ' AND status = ?';
+    params.push(status);
+  }
+
+  if (search) {
+    query += ' AND (reference LIKE ? OR receipt_number LIKE ? OR book_title LIKE ?)';
+    const term = `%${search.trim()}%`;
+    params.push(term, term, term);
+  }
+
+  query += ' ORDER BY created_at DESC, id DESC';
+  return db.prepare(query).all(...params);
+}
+
+export function createClaim({ userId, category, orderReference = '', subject = '', message }) {
+  const year = new Date().getFullYear();
+  const hex = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const count = db.prepare('SELECT COUNT(*) AS total FROM claims').get().total + 1;
+  const claimNumber = `REC-${year}-${String(count).padStart(4, '0')}-${hex}`;
+
+  db.prepare(`
+    INSERT INTO claims (claim_number, user_id, category, order_reference, subject, message, status)
+    VALUES (?, ?, ?, ?, ?, ?, 'OUVERT')
+  `).run(
+    claimNumber,
+    userId,
+    String(category || 'autre').slice(0, 50),
+    String(orderReference || '').slice(0, 60),
+    String(subject || '').slice(0, 160),
+    String(message || '').slice(0, 5000),
+  );
+
+  return db.prepare('SELECT * FROM claims WHERE claim_number = ?').get(claimNumber);
+}
+
+export function listUserClaims(userId) {
+  return db.prepare('SELECT * FROM claims WHERE user_id = ? ORDER BY created_at DESC, id DESC').all(userId);
+}
+
+export function listAdminClaims(status = '') {
+  let query = `
+    SELECT c.*, u.email AS user_email, u.name AS user_name
+    FROM claims c
+    JOIN users u ON u.id = c.user_id`;
+  const params = [];
+  if (status) {
+    query += ' WHERE c.status = ?';
+    params.push(status);
+  }
+  query += " ORDER BY CASE c.status WHEN 'OUVERT' THEN 0 WHEN 'EN_COURS' THEN 1 WHEN 'EN_ATTENTE' THEN 2 ELSE 3 END, c.created_at DESC";
+  return db.prepare(query).all(...params);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                     Capture de Leads WhatsApp                              */
+/* -------------------------------------------------------------------------- */
+
+export function saveLead({ phone, source = 'chapter1_gate', bookSlug = '', ip = '' }) {
+  const cleanPhone = String(phone || '').replace(/[^0-9]/g, '');
+  if (!cleanPhone) return null;
+  const existing = db.prepare('SELECT * FROM leads WHERE phone = ?').get(cleanPhone);
+  if (existing) return existing;
+
+  const info = db.prepare(`
+    INSERT INTO leads (phone, source, book_slug, ip)
+    VALUES (?, ?, ?, ?)
+  `).run(cleanPhone, String(source).slice(0, 50), String(bookSlug).slice(0, 100), String(ip).slice(0, 60));
+
+  return db.prepare('SELECT * FROM leads WHERE id = ?').get(info.lastInsertRowid);
+}
+
+export function listLeads(limit = 200) {
+  return db.prepare('SELECT * FROM leads ORDER BY created_at DESC LIMIT ?').all(limit);
 }

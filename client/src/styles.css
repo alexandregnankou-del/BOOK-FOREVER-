@@ -2911,396 +2911,593 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   margin: 0;
   max-width: 520px;
 }
-.videos-footer-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-/* ==========================================================================
-   v53 — REFONTE DE L'ACCUEIL (8 sections)
-   Palette : bleu nuit, doré discret, blanc cassé. Le site reste clair ;
-   le bleu nuit est réservé au hero et au bloc communauté, comme accents.
-   Aucune de ces règles ne s'applique aux autres pages.
-   ========================================================================== */
-:root {
-  --nuit: #070c16;
-  --nuit-2: #0d1524;
-  --nuit-3: #101b2d;
-  --or-clair: #e3c98a;
-}
-
-/* ---------- 1. Hero ---------- */
-.hero {
-  background:
-    radial-gradient(120% 90% at 82% -10%, rgba(185, 139, 46, 0.16), transparent 58%),
-    radial-gradient(80% 70% at 0% 100%, rgba(38, 58, 95, 0.5), transparent 62%),
-    linear-gradient(180deg, var(--nuit) 0%, var(--nuit-2) 100%);
-  border-bottom: 1px solid rgba(185, 139, 46, 0.16);
-}
-.hero::after {
-  background: radial-gradient(48% 48% at 84% 22%, rgba(227, 201, 138, 0.1), transparent 70%);
-}
-.hero .wrap {
-  grid-template-columns: 1.06fr 0.94fr;
-  gap: 44px;
-  padding-top: 72px;
-  padding-bottom: 72px;
-}
-.hero h1 {
-  font-size: clamp(2.05rem, 5vw, 3.5rem);
-  line-height: 1.14;
-  letter-spacing: -0.012em;
-  color: #f7f2e8;
-}
-.hero h1 em {
-  color: var(--or-clair);
-}
-.hero p.lead {
-  color: #cbc4b6;
-  max-width: 34em;
-}
-.hero .eyebrow {
-  color: var(--or-clair);
-}
-.hero-note {
-  margin-top: 20px;
-  color: #9a9384;
-}
-
-/* Pile de couvertures : flex + rotations, pas de position absolue.
-   Le conteneur prend la hauteur de son contenu, donc rien n'est rogné. */
-.hero-stack {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  perspective: 900px;
-  gap: 0;
-}
-.hero-stack img {
-  width: 40%;
-  height: auto;
-  aspect-ratio: 2 / 3;
-  object-fit: cover;
-  border-radius: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 30px 62px -26px rgba(0, 0, 0, 0.9);
-  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.hero-stack img:nth-child(1) {
-  transform: rotate(-7deg) translate(6px, 12px);
-  z-index: 1;
-}
-.hero-stack img:nth-child(2) {
-  margin-left: -10%;
-  transform: rotate(-1deg) translateY(-8px);
-  z-index: 3;
-}
-.hero-stack img:nth-child(3) {
-  margin-left: -10%;
-  transform: rotate(6deg) translate(-4px, 14px);
-  z-index: 2;
-}
-.hero-stack:hover img:nth-child(1) {
-  transform: rotate(-9deg) translate(2px, 6px);
-}
-.hero-stack:hover img:nth-child(3) {
-  transform: rotate(8deg) translate(-8px, 8px);
-}
-.hero-stack-vide {
-  width: 100%;
-  aspect-ratio: 4 / 5;
-  border: 1px dashed rgba(227, 201, 138, 0.28);
-  border-radius: 10px;
-}
-
-/* ---------- 2. Roman à la une ---------- */
-.une-section {
-  background: linear-gradient(180deg, var(--nuit-2), var(--nuit));
-  border-bottom: 1px solid rgba(185, 139, 46, 0.16);
-  padding-top: 56px;
-  padding-bottom: 60px;
-}
-.une-section .section-head h2,
-.une-section h3 {
-  color: #f7f2e8;
-}
-.une-section .eyebrow {
-  color: var(--or-clair);
-}
-.une-section .section-head p {
-  color: #a9a294;
-}
-.une {
+/* ---------- Preuve sociale : Avis Lecteurs ---------- */
+.reviews-grid {
   display: grid;
-  grid-template-columns: 232px 1fr;
-  gap: 40px;
-  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
 }
-.une-cover img {
+.review-card {
+  background: var(--surface, #1d1915);
+  border: 1px solid var(--border, rgba(201, 162, 39, 0.2));
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.review-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold, #c9a227);
+}
+.review-stars {
+  color: #ffb800;
+  font-size: 1rem;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+.review-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #f5eee6;
+  font-style: italic;
+  margin-bottom: 14px;
+}
+.review-author {
+  font-size: 0.85rem;
+  color: var(--gold, #c9a227);
+  font-weight: 600;
+}
+.review-location {
+  color: var(--muted, #9e8f80);
+  font-weight: 400;
+}
+
+/* ---------- Phase 6 : Reçus électroniques & Modal ---------- */
+.receipt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.receipt-dialog {
+  background: #fff;
+  color: #14110e;
   width: 100%;
-  height: auto;
-  aspect-ratio: 2 / 3;
-  object-fit: cover;
-  border-radius: 6px;
-  box-shadow: 0 34px 68px -24px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(185, 139, 46, 0.24);
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
-.une-badge {
+.receipt-dialog-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  background: #f8f5ee;
+  border-bottom: 1px solid #e2d8c8;
+}
+.receipt-document {
+  padding: 28px 24px;
+  font-family: var(--font-body, system-ui, sans-serif);
+  line-height: 1.45;
+}
+.receipt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.receipt-badge {
   display: inline-block;
-  font-family: var(--sans);
-  font-size: 0.68rem;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.receipt-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.88rem;
+}
+.receipt-table th {
+  text-align: left;
+  padding: 6px 10px;
+  background: #fdfbf7;
+  color: #666;
+  font-weight: 500;
+  width: 25%;
+  border-bottom: 1px solid #eee;
+}
+.receipt-table td {
+  padding: 6px 10px;
+  color: #14110e;
+  border-bottom: 1px solid #eee;
+}
+.receipt-item-box {
+  border: 1px solid #e2d8c8;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 18px 0;
+}
+.receipt-item-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  padding: 10px 14px;
+  align-items: center;
+}
+.receipt-item-row.header {
+  background: #f8f5ee;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2d8c8;
+}
+.receipt-item-row.body {
+  border-bottom: 1px solid #f0eae1;
+}
+.receipt-item-row.total {
+  background: #fdfbf7;
+  font-weight: 600;
+}
+.receipt-footer {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid #eee;
+  font-size: 0.78rem;
+  color: #666;
+  text-align: center;
+}
+
+/* Récapitulatif de panier / commande */
+.order-summary-card {
+  background: rgba(20, 17, 14, 0.95);
+  border: 1px solid var(--gold, #c9a227);
+  border-radius: 10px;
+  padding: 20px;
+  margin: 16px 0;
+}
+.order-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+.order-summary-row:last-child {
+  border-bottom: none;
+}
+.order-summary-row.total {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold, #c9a227);
+  padding-top: 12px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .receipt-overlay,
+  .receipt-dialog,
+  .receipt-document,
+  .receipt-document * {
+    visibility: visible;
+  }
+  .receipt-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: transparent;
+    padding: 0;
+  }
+  .receipt-dialog {
+    box-shadow: none;
+    max-width: 100%;
+    border-radius: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ========================================================================== */
+/*           REFONTE PREMIUM DE LA PAGE D'ACCUEIL (UI / UX / Conversion)       */
+/* ========================================================================== */
+
+.home-premium {
+  --night-bg: #0a0e17;
+  --night-surface: #121824;
+  --night-border: rgba(197, 160, 89, 0.25);
+  --gold-accent: #c5a059;
+  --gold-bright: #e2b158;
+}
+
+.eyebrow-gold {
+  color: var(--gold-accent, #c5a059) !important;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--or-clair);
-  border: 1px solid rgba(227, 201, 138, 0.4);
-  border-radius: 999px;
-  padding: 5px 12px;
-  margin-bottom: 16px;
 }
-.une-body h3 {
+
+.hero-premium {
+  background: radial-gradient(circle at 75% 25%, #182238 0%, #0a0e17 65%);
+  color: #f5f5f5;
+  padding: 56px 0 44px;
+  border-bottom: 1px solid var(--night-border);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 36px;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: clamp(2rem, 4vw, 3.2rem);
   font-family: var(--serif);
-  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
-  line-height: 1.14;
-  margin: 0 0 6px;
+  line-height: 1.1;
+  margin: 12px 0 16px;
+  color: #ffffff;
 }
-.une-auteur {
-  font-family: var(--sans);
+
+.hero-title em {
+  font-style: italic;
+  color: var(--gold-bright, #e2b158);
+}
+
+.hero-subtitle {
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: #cfc6b8;
+  max-width: 580px;
+  margin-bottom: 24px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  font-size: 0.82rem;
+  color: #a89f91;
+}
+
+.hero-book-card {
+  display: flex;
+  justify-content: center;
+  perspective: 1000px;
+}
+
+.hero-cover-img {
+  width: 100%;
+  max-width: 280px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--gold-accent);
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.8), 0 0 25px rgba(197, 160, 89, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hero-cover-img:hover {
+  transform: translateY(-4px) rotateY(-3deg);
+  box-shadow: 0 24px 50px -10px rgba(0, 0, 0, 0.9), 0 0 35px rgba(197, 160, 89, 0.35);
+}
+
+/* Bande de reprise personnalisée */
+.resume-card-premium {
+  background: var(--night-surface, #121824);
+  border: 1px solid var(--gold-accent);
+  border-radius: 12px;
+  padding: 18px 24px;
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  gap: 20px;
+  align-items: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.guest-resume-banner {
+  background: rgba(18, 24, 36, 0.7);
+  border: 1px dashed var(--night-border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Spotlight Roman Phare */
+.spotlight-card-premium {
+  background: var(--night-surface, #121824);
+  border: 1px solid var(--gold-accent);
+  border-radius: 16px;
+  padding: 32px 28px;
+  position: relative;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+.spotlight-badge-top {
+  position: absolute;
+  top: -14px;
+  left: 28px;
+  background: var(--gold-accent, #c5a059);
+  color: #0a0e17;
   font-size: 0.76rem;
-  letter-spacing: 0.14em;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--or-clair);
-  margin: 0 0 18px;
 }
-.une-resume {
-  color: #cbc4b6;
-  font-size: 1rem;
-  max-width: 46em;
-  margin: 0 0 24px;
+
+.spotlight-content-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+  align-items: center;
 }
-.une-actions {
+
+.spotlight-cover-main {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(197, 160, 89, 0.4);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+}
+
+.spotlight-title {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  color: #ffffff;
+  margin: 6px 0 4px;
+}
+
+.spotlight-author {
+  font-size: 0.95rem;
+  color: var(--gold-bright, #e2b158);
+  margin-bottom: 12px;
+}
+
+.spotlight-synopsis {
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: #cfc6b8;
+  margin-bottom: 18px;
+}
+
+.citation-box {
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid var(--gold-accent);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 22px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.citation-quote {
+  font-size: 0.92rem;
+  font-style: italic;
+  color: #f5f5f5;
+  line-height: 1.4;
+}
+
+.citation-source {
+  font-size: 0.78rem;
+  color: var(--gold-bright, #e2b158);
+  margin-top: 4px;
+}
+
+.spotlight-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
 }
-.une-section .btn-ghost {
-  color: #f3e9d8;
-  border-color: rgba(243, 233, 216, 0.32);
-}
-.une-section .hint {
-  color: #8e8779;
-  margin-top: 14px;
-}
 
-/* ---------- 3. Galerie de couvertures ---------- */
-.galerie {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
-  gap: 26px 22px;
-}
-.gal-card {
+/* Filtres d'humeur */
+.mood-filters-bar {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.gal-cover {
-  display: block;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 18px 38px -22px rgba(20, 17, 14, 0.6), 0 0 0 1px rgba(20, 17, 14, 0.08);
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
-}
-.gal-cover img {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 2 / 3;
-  object-fit: cover;
-  display: block;
-}
-.gal-card:hover .gal-cover {
-  transform: translateY(-4px);
-  box-shadow: 0 26px 50px -24px rgba(20, 17, 14, 0.7), 0 0 0 1px rgba(185, 139, 46, 0.35);
-}
-.gal-card h3 {
-  font-family: var(--serif);
-  font-size: 1.04rem;
-  line-height: 1.3;
-  margin: 14px 0 3px;
-}
-.gal-card h3 a {
-  color: var(--ink);
-  text-decoration: none;
-}
-.gal-auteur {
-  font-family: var(--sans);
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-.gal-court {
-  font-size: 0.85rem;
-  color: var(--muted);
-  line-height: 1.5;
-  margin: 0 0 12px;
-}
-.gal-lien {
-  font-family: var(--sans);
-  font-size: 0.74rem;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--gold);
-  text-decoration: none;
-  margin-top: auto;
-}
-.gal-lien::after {
-  content: ' →';
-}
-.gal-lien:hover {
-  color: var(--ink);
-}
-
-/* ---------- 4. Lecture gratuite ---------- */
-.accueil-gratuit {
-  text-align: center;
-  background: linear-gradient(160deg, var(--nuit-2), var(--nuit));
-  border-top: 1px solid rgba(185, 139, 46, 0.18);
-  border-bottom: 1px solid rgba(185, 139, 46, 0.18);
-}
-.accueil-gratuit .eyebrow {
-  color: var(--or-clair);
-}
-.accueil-gratuit h2 {
-  font-family: var(--serif);
-  font-size: clamp(1.7rem, 3.8vw, 2.7rem);
-  line-height: 1.18;
-  color: #f7f2e8;
-  max-width: 20em;
-  margin: 10px auto 16px;
-}
-.accueil-gratuit h2 em {
-  font-style: italic;
-  color: var(--or-clair);
-}
-.accueil-gratuit p {
-  color: #cbc4b6;
-  max-width: 36em;
-  margin: 0 auto 26px;
-}
-
-/* ---------- 5. Pourquoi ---------- */
-.atouts {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 30px;
-}
-.atout {
-  border-top: 1px solid var(--line);
-  padding-top: 20px;
-}
-.atout-ico {
-  display: inline-flex;
-  align-items: center;
+  flex-wrap: wrap;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  border: 1px solid rgba(185, 139, 46, 0.45);
-  color: var(--gold);
-  font-size: 0.95rem;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin: 20px 0 32px;
 }
-.atout h3 {
+
+.mood-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ded7cd;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mood-btn:hover {
+  background: rgba(197, 160, 89, 0.12);
+  border-color: var(--gold-accent);
+  color: #ffffff;
+}
+
+.mood-btn.active {
+  background: var(--gold-accent, #c5a059);
+  color: #0a0e17;
+  font-weight: 600;
+  border-color: var(--gold-accent);
+}
+
+/* Teaser / Extrait Chapitre 2 */
+.teaser-card {
+  background: var(--night-surface, #121824);
+  border: 1px solid var(--gold-accent);
+  border-radius: 16px;
+  padding: 32px 28px;
+  text-align: center;
+}
+
+.teaser-preview-box {
+  background: rgba(10, 14, 23, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 20px;
+  position: relative;
+  text-align: left;
+}
+
+.teaser-text-content {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: #f5f5f5;
   font-family: var(--serif);
-  font-size: 1.08rem;
-  margin: 0 0 6px;
 }
-.atout p {
-  font-size: 0.9rem;
-  color: var(--muted);
+
+.blurred-text {
+  filter: blur(4px);
+  opacity: 0.45;
+  user-select: none;
+  pointer-events: none;
+}
+
+.teaser-overlay-unlock {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px dashed rgba(197, 160, 89, 0.3);
+  text-align: center;
+}
+
+.unlock-badge {
+  display: inline-block;
+  background: rgba(197, 160, 89, 0.15);
+  border: 1px solid var(--gold-accent);
+  color: var(--gold-bright);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 14px;
+}
+
+/* Grille Réassurance */
+.reassurance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.reassurance-card {
+  background: var(--night-surface, #121824);
+  border: 1px solid var(--night-border);
+  border-radius: 12px;
+  padding: 22px 18px;
+  text-align: left;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.reassurance-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold-accent);
+}
+
+.reassurance-icon {
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+}
+
+.reassurance-card h3 {
+  font-size: 1.08rem;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.reassurance-card p {
+  font-size: 0.86rem;
+  color: #a89f91;
+  line-height: 1.45;
   margin: 0;
 }
 
-/* ---------- 7. Communauté ---------- */
-.accueil-commu {
+/* Communauté WhatsApp */
+.community-card {
+  background: linear-gradient(135deg, #0d1e15, #121824);
+  border: 1px solid rgba(37, 211, 102, 0.35);
+  border-radius: 16px;
+  padding: 36px 28px;
   text-align: center;
-  background:
-    radial-gradient(90% 120% at 50% 0%, rgba(185, 139, 46, 0.14), transparent 62%),
-    var(--nuit);
-  border-top: 1px solid rgba(185, 139, 46, 0.2);
-  border-bottom: 1px solid rgba(185, 139, 46, 0.2);
-}
-.accueil-commu .eyebrow {
-  color: var(--or-clair);
-}
-.accueil-commu h2 {
-  font-family: var(--serif);
-  font-size: clamp(1.55rem, 3.2vw, 2.25rem);
-  line-height: 1.2;
-  color: #f7f2e8;
-  max-width: 24em;
-  margin: 10px auto 16px;
-}
-.accueil-commu p {
-  color: #cbc4b6;
-  max-width: 34em;
-  margin: 0 auto 26px;
-}
-.accueil-commu .hint {
-  color: #8e8779;
-  margin-top: 18px;
 }
 
-/* ---------- Adaptation aux petits écrans ---------- */
-@media (max-width: 980px) {
-  .atouts {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 26px;
-  }
+.community-content h2 {
+  font-size: 1.8rem;
+  color: #ffffff;
+  margin: 8px 0 10px;
 }
-@media (max-width: 900px) {
-  .hero .wrap {
-    grid-template-columns: 1fr;
-    gap: 34px;
-    padding-top: 44px;
-    padding-bottom: 52px;
-  }
-  .hero-stack {
-    order: -1;
-    max-width: 300px;
-    margin: 0 auto;
-  }
-  .une {
-    grid-template-columns: 1fr;
-    gap: 26px;
-  }
-  .une-cover {
-    max-width: 168px;
-  }
+
+.community-content p {
+  color: #cfc6b8;
+  max-width: 580px;
+  margin: 0 auto 20px;
+  font-size: 0.95rem;
 }
-@media (max-width: 560px) {
-  .atouts {
+
+/* Adaptations iPhone / Mobile */
+@media (max-width: 768px) {
+  .hero-grid {
     grid-template-columns: 1fr;
+    text-align: center;
   }
-  .galerie {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 22px 16px;
+  .hero-subtitle {
+    margin-left: auto;
+    margin-right: auto;
   }
-  .hero-actions .btn {
-    width: 100%;
+  .hero-actions,
+  .hero-badges {
     justify-content: center;
   }
+  .spotlight-content-grid {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .spotlight-cover-main {
+    max-width: 220px;
+    margin: 0 auto;
+  }
+  .spotlight-actions {
+    justify-content: center;
+  }
+  .resume-card-premium {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .resume-cover {
+    margin: 0 auto;
+  }
 }
 
-/* Respect de la préférence système « réduire les animations ». */
-@media (prefers-reduced-motion: reduce) {
-  .hero-stack img,
-  .gal-cover {
-    transition: none;
-  }
-  .gal-card:hover .gal-cover {
-    transform: none;
-  }
-}
+
