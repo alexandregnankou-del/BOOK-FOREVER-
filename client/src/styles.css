@@ -2916,3 +2916,391 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* ==========================================================================
+   v53 — REFONTE DE L'ACCUEIL (8 sections)
+   Palette : bleu nuit, doré discret, blanc cassé. Le site reste clair ;
+   le bleu nuit est réservé au hero et au bloc communauté, comme accents.
+   Aucune de ces règles ne s'applique aux autres pages.
+   ========================================================================== */
+:root {
+  --nuit: #070c16;
+  --nuit-2: #0d1524;
+  --nuit-3: #101b2d;
+  --or-clair: #e3c98a;
+}
+
+/* ---------- 1. Hero ---------- */
+.hero {
+  background:
+    radial-gradient(120% 90% at 82% -10%, rgba(185, 139, 46, 0.16), transparent 58%),
+    radial-gradient(80% 70% at 0% 100%, rgba(38, 58, 95, 0.5), transparent 62%),
+    linear-gradient(180deg, var(--nuit) 0%, var(--nuit-2) 100%);
+  border-bottom: 1px solid rgba(185, 139, 46, 0.16);
+}
+.hero::after {
+  background: radial-gradient(48% 48% at 84% 22%, rgba(227, 201, 138, 0.1), transparent 70%);
+}
+.hero .wrap {
+  grid-template-columns: 1.06fr 0.94fr;
+  gap: 44px;
+  padding-top: 72px;
+  padding-bottom: 72px;
+}
+.hero h1 {
+  font-size: clamp(2.05rem, 5vw, 3.5rem);
+  line-height: 1.14;
+  letter-spacing: -0.012em;
+  color: #f7f2e8;
+}
+.hero h1 em {
+  color: var(--or-clair);
+}
+.hero p.lead {
+  color: #cbc4b6;
+  max-width: 34em;
+}
+.hero .eyebrow {
+  color: var(--or-clair);
+}
+.hero-note {
+  margin-top: 20px;
+  color: #9a9384;
+}
+
+/* Pile de couvertures : flex + rotations, pas de position absolue.
+   Le conteneur prend la hauteur de son contenu, donc rien n'est rogné. */
+.hero-stack {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  perspective: 900px;
+  gap: 0;
+}
+.hero-stack img {
+  width: 40%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 62px -26px rgba(0, 0, 0, 0.9);
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.hero-stack img:nth-child(1) {
+  transform: rotate(-7deg) translate(6px, 12px);
+  z-index: 1;
+}
+.hero-stack img:nth-child(2) {
+  margin-left: -10%;
+  transform: rotate(-1deg) translateY(-8px);
+  z-index: 3;
+}
+.hero-stack img:nth-child(3) {
+  margin-left: -10%;
+  transform: rotate(6deg) translate(-4px, 14px);
+  z-index: 2;
+}
+.hero-stack:hover img:nth-child(1) {
+  transform: rotate(-9deg) translate(2px, 6px);
+}
+.hero-stack:hover img:nth-child(3) {
+  transform: rotate(8deg) translate(-8px, 8px);
+}
+.hero-stack-vide {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border: 1px dashed rgba(227, 201, 138, 0.28);
+  border-radius: 10px;
+}
+
+/* ---------- 2. Roman à la une ---------- */
+.une-section {
+  background: linear-gradient(180deg, var(--nuit-2), var(--nuit));
+  border-bottom: 1px solid rgba(185, 139, 46, 0.16);
+  padding-top: 56px;
+  padding-bottom: 60px;
+}
+.une-section .section-head h2,
+.une-section h3 {
+  color: #f7f2e8;
+}
+.une-section .eyebrow {
+  color: var(--or-clair);
+}
+.une-section .section-head p {
+  color: #a9a294;
+}
+.une {
+  display: grid;
+  grid-template-columns: 232px 1fr;
+  gap: 40px;
+  align-items: start;
+}
+.une-cover img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 34px 68px -24px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(185, 139, 46, 0.24);
+}
+.une-badge {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--or-clair);
+  border: 1px solid rgba(227, 201, 138, 0.4);
+  border-radius: 999px;
+  padding: 5px 12px;
+  margin-bottom: 16px;
+}
+.une-body h3 {
+  font-family: var(--serif);
+  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
+  line-height: 1.14;
+  margin: 0 0 6px;
+}
+.une-auteur {
+  font-family: var(--sans);
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--or-clair);
+  margin: 0 0 18px;
+}
+.une-resume {
+  color: #cbc4b6;
+  font-size: 1rem;
+  max-width: 46em;
+  margin: 0 0 24px;
+}
+.une-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.une-section .btn-ghost {
+  color: #f3e9d8;
+  border-color: rgba(243, 233, 216, 0.32);
+}
+.une-section .hint {
+  color: #8e8779;
+  margin-top: 14px;
+}
+
+/* ---------- 3. Galerie de couvertures ---------- */
+.galerie {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 26px 22px;
+}
+.gal-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.gal-cover {
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 18px 38px -22px rgba(20, 17, 14, 0.6), 0 0 0 1px rgba(20, 17, 14, 0.08);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.gal-cover img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  display: block;
+}
+.gal-card:hover .gal-cover {
+  transform: translateY(-4px);
+  box-shadow: 0 26px 50px -24px rgba(20, 17, 14, 0.7), 0 0 0 1px rgba(185, 139, 46, 0.35);
+}
+.gal-card h3 {
+  font-family: var(--serif);
+  font-size: 1.04rem;
+  line-height: 1.3;
+  margin: 14px 0 3px;
+}
+.gal-card h3 a {
+  color: var(--ink);
+  text-decoration: none;
+}
+.gal-auteur {
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.gal-court {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+.gal-lien {
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--gold);
+  text-decoration: none;
+  margin-top: auto;
+}
+.gal-lien::after {
+  content: ' →';
+}
+.gal-lien:hover {
+  color: var(--ink);
+}
+
+/* ---------- 4. Lecture gratuite ---------- */
+.accueil-gratuit {
+  text-align: center;
+  background: linear-gradient(160deg, var(--nuit-2), var(--nuit));
+  border-top: 1px solid rgba(185, 139, 46, 0.18);
+  border-bottom: 1px solid rgba(185, 139, 46, 0.18);
+}
+.accueil-gratuit .eyebrow {
+  color: var(--or-clair);
+}
+.accueil-gratuit h2 {
+  font-family: var(--serif);
+  font-size: clamp(1.7rem, 3.8vw, 2.7rem);
+  line-height: 1.18;
+  color: #f7f2e8;
+  max-width: 20em;
+  margin: 10px auto 16px;
+}
+.accueil-gratuit h2 em {
+  font-style: italic;
+  color: var(--or-clair);
+}
+.accueil-gratuit p {
+  color: #cbc4b6;
+  max-width: 36em;
+  margin: 0 auto 26px;
+}
+
+/* ---------- 5. Pourquoi ---------- */
+.atouts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 30px;
+}
+.atout {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.atout-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(185, 139, 46, 0.45);
+  color: var(--gold);
+  font-size: 0.95rem;
+  margin-bottom: 14px;
+}
+.atout h3 {
+  font-family: var(--serif);
+  font-size: 1.08rem;
+  margin: 0 0 6px;
+}
+.atout p {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ---------- 7. Communauté ---------- */
+.accueil-commu {
+  text-align: center;
+  background:
+    radial-gradient(90% 120% at 50% 0%, rgba(185, 139, 46, 0.14), transparent 62%),
+    var(--nuit);
+  border-top: 1px solid rgba(185, 139, 46, 0.2);
+  border-bottom: 1px solid rgba(185, 139, 46, 0.2);
+}
+.accueil-commu .eyebrow {
+  color: var(--or-clair);
+}
+.accueil-commu h2 {
+  font-family: var(--serif);
+  font-size: clamp(1.55rem, 3.2vw, 2.25rem);
+  line-height: 1.2;
+  color: #f7f2e8;
+  max-width: 24em;
+  margin: 10px auto 16px;
+}
+.accueil-commu p {
+  color: #cbc4b6;
+  max-width: 34em;
+  margin: 0 auto 26px;
+}
+.accueil-commu .hint {
+  color: #8e8779;
+  margin-top: 18px;
+}
+
+/* ---------- Adaptation aux petits écrans ---------- */
+@media (max-width: 980px) {
+  .atouts {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 26px;
+  }
+}
+@media (max-width: 900px) {
+  .hero .wrap {
+    grid-template-columns: 1fr;
+    gap: 34px;
+    padding-top: 44px;
+    padding-bottom: 52px;
+  }
+  .hero-stack {
+    order: -1;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  .une {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+  .une-cover {
+    max-width: 168px;
+  }
+}
+@media (max-width: 560px) {
+  .atouts {
+    grid-template-columns: 1fr;
+  }
+  .galerie {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px 16px;
+  }
+  .hero-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Respect de la préférence système « réduire les animations ». */
+@media (prefers-reduced-motion: reduce) {
+  .hero-stack img,
+  .gal-cover {
+    transition: none;
+  }
+  .gal-card:hover .gal-cover {
+    transform: none;
+  }
+}

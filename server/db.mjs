@@ -251,6 +251,9 @@ addColumn('orders', 'provider', "TEXT NOT NULL DEFAULT 'manual'");
 addColumn('orders', 'currency', "TEXT NOT NULL DEFAULT 'XOF'");
 addColumn('orders', 'expires_at', 'TEXT');
 addColumn('orders', 'verification_status', "TEXT NOT NULL DEFAULT 'manual'");
+/* v53 : archivage d'un chapitre (on dépublie au lieu de supprimer) */
+addColumn('chapters', 'archived_at', 'TEXT');
+addColumn('chapters', 'archived_reason', "TEXT NOT NULL DEFAULT ''");
 /* v22 : pass court, packs de crédits, parrainage */
 addColumn('subscriptions', 'plan', "TEXT NOT NULL DEFAULT 'monthly'");
 addColumn('subscriptions', 'days', 'INTEGER NOT NULL DEFAULT 30');

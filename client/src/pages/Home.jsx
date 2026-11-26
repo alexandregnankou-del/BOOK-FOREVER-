@@ -1,12 +1,88 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, formatXof } from '../api.js';
 import { useSite } from '../site.jsx';
 import { useSession } from '../session.jsx';
-import BookCard from '../components/BookCard.jsx';
 import PromoRail from '../components/PromoRail.jsx';
 import VideoRail from '../components/VideoRail.jsx';
 import Spotlight from '../components/Spotlight.jsx';
+
+/**
+ * Résumé court : on coupe le synopsis enregistré sur une fin de phrase.
+ * On ne réécrit jamais le texte de l'auteur, on le tronque.
+ */
+function resumeCourt(texte, max = 150) {
+  const plat = String(texte || '').replace(/\s+/g, ' ').trim();
+  if (plat.length <= max) return plat;
+  const coupe = plat.slice(0, max);
+  const fin = coupe.search(/[.!?…][^.!?…]*$/);
+  if (fin > max * 0.55) return coupe.slice(0, fin + 1);
+  return `${coupe.replace(/\s+\S*$/, '')}…`;
+}
+
+/** Le chapitre gratuit d'entrée de chaque roman. */
+function premierChapitre(book) {
+  return book?.firstChapter || 1;
+}
+
+function RomanALaUne({ book }) {
+  if (!book) return null;
+  const debut = premierChapitre(book);
+  return (
+    <section className="section une-section" id="a-la-une" aria-labelledby="une-titre">
+      <div className="wrap">
+        <div className="section-head">
+          <div>
+            <span className="eyebrow">Roman à la une</span>
+            <h2 id="une-titre">Cette semaine, commencez par celui-ci</h2>
+          </div>
+        </div>
+        <div className="une">
+          <Link to={`/roman/${book.slug}`} className="une-cover" tabIndex={-1} aria-hidden="true">
+            <img src={book.cover} alt="" loading="eager" />
+          </Link>
+          <div className="une-body">
+            <span className="une-badge">
+              {book.chaptersPublished || book.chaptersTotal || 0} chapitres · {book.freeChapters ?? 2} offerts
+            </span>
+            <h3>{book.title}</h3>
+            <p className="une-auteur">{book.author}</p>
+            <p className="une-resume">{resumeCourt(book.synopsis, 340)}</p>
+            <div className="une-actions">
+              <Link to={`/lire/${book.slug}/${debut}`} className="btn btn-gold">
+                Lire les {book.freeChapters ?? 2} premiers chapitres
+              </Link>
+              <Link to={`/roman/${book.slug}`} className="btn btn-ghost">
+                Voir le roman
+              </Link>
+            </div>
+            <p className="hint">
+              {formatXof(book.priceXof)} le chapitre ensuite — Wave ou Orange Money.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CarteGalerie({ book }) {
+  return (
+    <article className="gal-card">
+      <Link to={`/roman/${book.slug}`} className="gal-cover">
+        <img src={book.cover} alt={`Couverture — ${book.title}`} loading="lazy" />
+      </Link>
+      <h3>
+        <Link to={`/roman/${book.slug}`}>{book.title}</Link>
+      </h3>
+      <span className="gal-auteur">{book.author}</span>
+      <p className="gal-court">{resumeCourt(book.synopsis, 108)}</p>
+      <Link to={`/roman/${book.slug}`} className="gal-lien">
+        Consulter le roman
+      </Link>
+    </article>
+  );
+}
 
 export default function Home() {
   const site = useSite();
@@ -34,78 +110,73 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
-  const featured = books.slice(0, 3);
+  /* Le roman à la une : celui choisi dans la console s'il existe,
+     sinon le plus complet du catalogue. Jamais un roman inventé. */
+  const aLaUne = useMemo(() => {
+    if (!books.length) return null;
+    const choisi = site.spotlight?.bookSlug;
+    if (choisi) {
+      const trouve = books.find((book) => book.slug === choisi);
+      if (trouve) return trouve;
+    }
+    return [...books].sort(
+      (a, b) => (b.chaptersPublished || 0) - (a.chaptersPublished || 0) || a.title.localeCompare(b.title),
+    )[0];
+  }, [books, site.spotlight]);
+
+  const couverturesHero = books.slice(0, 3);
 
   return (
     <>
-      <Spotlight spotlight={site.spotlight} />
-
-      <section className="hero">
+      {/* 1 — Hero */}
+      <section className="hero" aria-labelledby="hero-titre">
         <div className="wrap">
-          <div>
+          <div className="hero-texte">
             <span className="eyebrow">{site.publisher}</span>
-            <h1>
-              Chaque histoire mérite
+            <h1 id="hero-titre">
+              Certaines histoires ne se lisent pas.
               <br />
-              d’être <em>lue jusqu’au bout.</em>
+              <em>Elles se vivent.</em>
             </h1>
             <p className="lead">
-              Les deux premiers chapitres sont offerts. La suite s’ouvre pour {formatXof(site.priceXof)} par
-              chapitre, avec Wave ou Orange Money — ou par un pass de {site.offers?.pass?.days || 7} jours et un
-              pack de {site.offers?.pack?.credits || 5} chapitres si vous lisez beaucoup. Aucun engagement.
+              Des histoires d’amour, de passion, de trahison et d’espoir. Entrez dans un univers où chaque
+              chapitre vous rapproche d’une nouvelle émotion.
             </p>
             <div className="hero-actions">
               <Link to="/bibliotheque" className="btn">
-                Découvrir la bibliothèque
+                Découvrir les romans
               </Link>
               <Link to="/installer" className="btn btn-ghost">
                 Installer sur mon téléphone
               </Link>
             </div>
             <div className="hero-note">
-              <span>✦</span> Lecture sur téléphone, tablette et ordinateur — sans application obligatoire.
+              <span aria-hidden="true">✦</span> Les {books[0]?.freeChapters ?? 2} premiers chapitres de chaque
+              roman sont offerts — sans compte, sans paiement.
             </div>
           </div>
-          <div className="hero-stack">
-            {(featured.length ? featured : [{ cover: '/media/covers/light-in-the-dark.webp' }, { cover: '/media/covers/les-larmes.webp' }])
-              .slice(0, 2)
-              .map((book, i) => (
-                <img key={i} src={book.cover} alt="" />
-              ))}
+          <div className="hero-stack" aria-hidden="true">
+            {couverturesHero.length > 0 ? (
+              couverturesHero.map((book) => (
+                <img key={book.id} src={book.cover} alt="" loading="eager" width="212" height="318" />
+              ))
+            ) : (
+              <div className="hero-stack-vide" />
+            )}
           </div>
         </div>
       </section>
 
+      <Spotlight spotlight={site.spotlight} />
+
+      {/* 2 — Roman à la une */}
+      <RomanALaUne book={aLaUne} />
+
       {books.length > 0 && <PromoRail books={books} channelUrl={site.channelUrl || ''} />}
 
-      <VideoRail channelUrl={site.channelUrl || ''} />
-
-      {resume && (
-        <section className="section resume-section">
-          <div className="wrap">
-            <div className="resume-card">
-              <img className="resume-cover" src={resume.book.cover} alt="" />
-              <div className="resume-body">
-                <span className="eyebrow">Reprendre la lecture</span>
-                <h3>{resume.book.title}</h3>
-                <p className="muted">
-                  Chapitre {resume.chapter.number} — {resume.chapter.title}
-                </p>
-                <div className="resume-bar" aria-hidden="true">
-                  <span style={{ width: `${Math.max(4, Math.round((resume.position || 0) * 100))}%` }} />
-                </div>
-              </div>
-              <Link to={`/lire/${resume.book.slug}/${resume.chapter.number}`} className="btn btn-gold">
-                Continuer
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
-
-      <section className="section">
+      {/* 3 — Nos romans */}
+      <section className="section" id="romans" aria-labelledby="romans-titre">
         <div className="wrap">
-
           {books.length > 0 && (
             <div className="catalogue-band">
               <div className="band-item">
@@ -129,26 +200,137 @@ export default function Home() {
 
           <div className="section-head">
             <div>
-              <span className="eyebrow">Le catalogue</span>
-              <h2>Les romans d’Alexandre Anderson G</h2>
-              <p>Trois univers : la foi qui soutient, les secrets de famille, l’amour qui traverse l’obscurité.</p>
+              <span className="eyebrow">Nos romans</span>
+              <h2 id="romans-titre">Choisissez votre histoire</h2>
+              <p>Couverture, auteur et début du résumé. Le reste s’ouvre au fil de votre lecture.</p>
             </div>
             <Link to="/bibliotheque" className="btn btn-ghost btn-sm">
               Tout voir
             </Link>
           </div>
+
           {loading ? (
             <p className="muted">Chargement de la bibliothèque…</p>
           ) : (
-            <div className="grid-books">
+            <div className="galerie">
               {books.map((book) => (
-                <BookCard key={book.id} book={book} />
+                <CarteGalerie key={book.id} book={book} />
               ))}
             </div>
           )}
         </div>
       </section>
 
+      {/* 4 — Lecture gratuite */}
+      <section className="section accueil-gratuit" aria-labelledby="gratuit-titre">
+        <div className="wrap">
+          <span className="eyebrow">Sans carte, sans engagement</span>
+          <h2 id="gratuit-titre">
+            Les <em>{books[0]?.freeChapters ?? 2} premiers chapitres</em> sont gratuits.
+          </h2>
+          <p>
+            Lisez le début de chaque roman avant de décider. Ensuite, {formatXof(site.priceXof)} le chapitre —
+            vous ne payez que ce que vous lisez.
+          </p>
+          <Link to={aLaUne ? `/lire/${aLaUne.slug}/${premierChapitre(aLaUne)}` : '/bibliotheque'} className="btn btn-gold">
+            Commencer à lire
+          </Link>
+        </div>
+      </section>
+
+      {/* 5 — Pourquoi BOOK FOREVER */}
+      <section className="section" aria-labelledby="pourquoi-titre">
+        <div className="wrap">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Pourquoi BOOK FOREVER ?</span>
+              <h2 id="pourquoi-titre">Quatre raisons de rester</h2>
+            </div>
+          </div>
+          <div className="atouts">
+            <div className="atout">
+              <span className="atout-ico" aria-hidden="true">
+                ⌂
+              </span>
+              <h3>Une bibliothèque personnelle</h3>
+              <p>Vos romans, vos favoris et votre historique réunis dans un seul espace.</p>
+            </div>
+            <div className="atout">
+              <span className="atout-ico" aria-hidden="true">
+                ⛨
+              </span>
+              <h3>Des achats sécurisés</h3>
+              <p>Chaque déblocage est vérifié côté serveur, jamais dans votre navigateur.</p>
+            </div>
+            <div className="atout">
+              <span className="atout-ico" aria-hidden="true">
+                ❧
+              </span>
+              <h3>Une lecture progressive</h3>
+              <p>Chapitre par chapitre, à votre rythme. Aucun abonnement obligatoire.</p>
+            </div>
+            <div className="atout">
+              <span className="atout-ico" aria-hidden="true">
+                ⟲
+              </span>
+              <h3>Vos achats dans votre compte</h3>
+              <p>Reconnectez-vous sur n’importe quel appareil : vous retrouvez tout.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <VideoRail channelUrl={site.channelUrl || ''} />
+
+      {/* 6 — Reprendre ma lecture */}
+      {resume && (
+        <section className="section resume-section" aria-labelledby="reprendre-titre">
+          <div className="wrap">
+            <div className="section-head">
+              <div>
+                <span className="eyebrow">Reprendre la lecture</span>
+                <h2 id="reprendre-titre">Vous étiez ici</h2>
+                <p>Le site retient votre dernière page ouverte, sur cet appareil comme sur les autres.</p>
+              </div>
+            </div>
+            <div className="resume-card">
+              <img className="resume-cover" src={resume.book.cover} alt="" />
+              <div className="resume-body">
+                <span className="eyebrow">Dernière lecture</span>
+                <h3>{resume.book.title}</h3>
+                <p className="muted">
+                  Chapitre {resume.chapter.number} — {resume.chapter.title}
+                </p>
+                <div className="resume-bar" aria-hidden="true">
+                  <span style={{ width: `${Math.max(4, Math.round((resume.position || 0) * 100))}%` }} />
+                </div>
+              </div>
+              <Link to={`/lire/${resume.book.slug}/${resume.chapter.number}`} className="btn btn-gold">
+                Continuer
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 7 — Communauté */}
+      <section className="section accueil-commu" aria-labelledby="commu-titre">
+        <div className="wrap">
+          <span className="eyebrow">Communauté</span>
+          <h2 id="commu-titre">Les nouveaux chapitres arrivent d’abord sur la chaîne.</h2>
+          <p>Annonces de sortie, extraits et coulisses. Rejoignez la chaîne WhatsApp officielle de BOOK FOREVER.</p>
+          {site.channelUrl && (
+            <a className="btn btn-whatsapp" href={site.channelUrl} target="_blank" rel="noreferrer">
+              <span aria-hidden="true">✆</span> Rejoindre la chaîne
+            </a>
+          )}
+          <p className="hint">
+            Aucun numéro à laisser, aucun groupe à rejoindre : une chaîne, vous la suivez si vous voulez.
+          </p>
+        </div>
+      </section>
+
+      {/* Les formules */}
       <section className="section">
         <div className="wrap">
           <div className="section-head">

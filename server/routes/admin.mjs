@@ -235,11 +235,81 @@ adminRoutes.patch('/chapters/:id', (req, res) => {
   res.json({ chapter: db.prepare('SELECT * FROM chapters WHERE id = ?').get(row.id) });
 });
 
+/**
+ * v53 — Suppression d'un chapitre : garde-fou.
+ * `orders.chapter_id` est en ON DELETE CASCADE : supprimer un chapitre qui a été
+ * commandé effacerait aussi les commandes (preuve de vente, montant, référence).
+ * On refuse donc la suppression dès qu'une seule commande existe, et on propose
+ * l'archivage à la place. La suppression reste possible sur un chapitre jamais vendu.
+ */
 adminRoutes.delete('/chapters/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM chapters WHERE id = ?').get(Number(req.params.id));
   if (!row) return res.status(404).json({ error: 'Chapitre introuvable.' });
+
+  const linked = db
+    .prepare(
+      `SELECT COUNT(*) AS orders,
+              COALESCE(SUM(amount_xof), 0) AS revenue,
+              SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) AS paid
+         FROM orders WHERE chapter_id = ?`,
+    )
+    .get(row.id);
+
+  if (linked.orders > 0) {
+    return res.status(409).json({
+      error:
+        `Suppression refusée : ce chapitre figure dans ${linked.orders} commande(s)` +
+        ` (${linked.paid} payée(s), ${linked.revenue} FCFA encaissés).` +
+        ' Le supprimer effacerait aussi ces commandes. Archivez-le à la place.',
+      code: 'CHAPTER_SOLD',
+      orders: linked.orders,
+      paid: linked.paid,
+      revenue: linked.revenue,
+      suggestion: { route: 'POST /api/admin/chapters/:id/archive' },
+    });
+  }
+
   db.prepare('DELETE FROM chapters WHERE id = ?').run(row.id);
-  res.json({ ok: true });
+  res.json({ ok: true, deleted: true });
+});
+
+/**
+ * v53 — Archivage : retire le chapitre du catalogue public sans rien effacer.
+ * Le statut passe à 'draft' (toutes les routes publiques filtrent sur
+ * 'published'), l'horodatage et la raison sont conservés, et les acheteurs
+ * gardent leur commande intacte. Réversible avec /unarchive.
+ */
+adminRoutes.post('/chapters/:id/archive', (req, res) => {
+  const row = db.prepare('SELECT * FROM chapters WHERE id = ?').get(Number(req.params.id));
+  if (!row) return res.status(404).json({ error: 'Chapitre introuvable.' });
+  const reason = String(req.body?.reason || '').slice(0, 300);
+  db.prepare(
+    `UPDATE chapters
+        SET status = 'draft', archived_at = CURRENT_TIMESTAMP,
+            archived_reason = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+  ).run(reason, row.id);
+  res.json({
+    ok: true,
+    archived: true,
+    chapter: db.prepare('SELECT * FROM chapters WHERE id = ?').get(row.id),
+  });
+});
+
+adminRoutes.post('/chapters/:id/unarchive', (req, res) => {
+  const row = db.prepare('SELECT * FROM chapters WHERE id = ?').get(Number(req.params.id));
+  if (!row) return res.status(404).json({ error: 'Chapitre introuvable.' });
+  db.prepare(
+    `UPDATE chapters
+        SET archived_at = NULL, archived_reason = '', updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+  ).run(row.id);
+  res.json({
+    ok: true,
+    restored: true,
+    note: "Le chapitre est désarchivé mais reste en brouillon : repassez son statut à 'published' pour le remettre en ligne.",
+    chapter: db.prepare('SELECT * FROM chapters WHERE id = ?').get(row.id),
+  });
 });
 
 /** Import d'un manuscrit complet : découpage sur les titres « Chapitre N ». */
