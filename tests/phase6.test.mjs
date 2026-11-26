@@ -4,12 +4,14 @@ import { spawn, execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const root = path.resolve(import.meta.dirname, '..');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bf-p6-test-'));
 const port = 4100 + Math.floor(Math.random() * 80);
 const base = `http://127.0.0.1:${port}`;
 const ADMIN = { email: 'admin-p6@test.local', password: 'TestAdminP6-123!' };
+const WEBHOOK_SECRET = 'secret-p6-webhook';
 let server;
 
 before(async () => {
@@ -20,6 +22,7 @@ before(async () => {
       PORT: String(port),
       DATA_DIR: dataDir,
       JWT_SECRET: 'test-p6-secret',
+      WAVE_WEBHOOK_SECRET: WEBHOOK_SECRET,
       ADMIN_EMAIL: ADMIN.email,
       ADMIN_PASSWORD: ADMIN.password,
       NODE_ENV: 'test',
@@ -221,22 +224,50 @@ test('Phase 6 - Paiement automatisé & Webhook Wave / CinetPay', async () => {
   assert.equal(checkoutRes.status, 200);
   assert.ok(checkoutRes.json.launchUrl);
 
-  // Webhook Wave simulant un paiement réussi
-  const webhookRes = await anon('/api/payments/webhook/wave', {
+  // 1. Webhook SANS signature : doit être refusé (v53 : échec fermé)
+  const sansSignature = await anon('/api/payments/webhook/wave', {
     method: 'POST',
-    body: {
-      type: 'checkout.session.completed',
-      data: { client_reference: ref },
-    },
+    body: { type: 'checkout.session.completed', data: { object: { client_reference: ref, amount: 300, currency: 'XOF' } } },
+  });
+  assert.equal(sansSignature.status, 401, 'un webhook sans signature ne doit jamais être accepté');
+
+  const apresRefus = await reader('/api/me/receipts');
+  assert.ok(
+    !apresRefus.json.receipts.some((r) => r.reference === ref && r.status === 'confirmed'),
+    'aucun reçu ne doit être émis sans vérification',
+  );
+
+  // 2. Webhook signé, montant et devise conformes : paiement accepté
+  const charge = {
+    type: 'checkout.session.completed',
+    data: { object: { client_reference: ref, amount: 300, currency: 'XOF' } },
+  };
+  const corps = JSON.stringify(charge);
+  const signature = crypto.createHmac('sha256', WEBHOOK_SECRET).update(corps).digest('hex');
+  const webhookRes = await fetch(base + '/api/payments/webhook/wave', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'wave-signature': signature },
+    body: corps,
   });
   assert.equal(webhookRes.status, 200);
+  const corpsReponse = await webhookRes.json();
+  assert.equal(corpsReponse.paid, true);
 
   // Vérifier que le chapitre est maintenant débloqué pour le lecteur
   const receipts = await reader('/api/me/receipts');
   assert.equal(receipts.status, 200);
   const myReceipt = receipts.json.receipts.find((r) => r.reference === ref);
-  assert.ok(myReceipt, 'Le reçu automatique doit exister suite au webhook');
+  assert.ok(myReceipt, 'Le reçu automatique doit exister suite au webhook signé');
   assert.equal(myReceipt.status, 'confirmed');
+
+  // 3. Rejeu du même webhook : accepté mais sans second déblocage
+  const rejeu = await fetch(base + '/api/payments/webhook/wave', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'wave-signature': signature },
+    body: corps,
+  });
+  assert.equal(rejeu.status, 200);
+  assert.equal((await rejeu.json()).alreadyPaid, true);
   // Test Guest Checkout (visiteur sans compte)
   const guestRes = await anon('/api/payments/guest-checkout', {
     method: 'POST',

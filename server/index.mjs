@@ -15,7 +15,16 @@ import { paymentRoutes } from './routes/payments.mjs';
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
-app.use(express.json({ limit: '6mb' }));
+/* Le corps brut est conservé : indispensable pour vérifier une signature
+   HMAC (webhooks de paiement) sur les octets réellement reçus. */
+app.use(
+  express.json({
+    limit: '6mb',
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 app.use(cookieParser());
 
 /* En-têtes de sécurité. La politique de contenu n'autorise que nos propres

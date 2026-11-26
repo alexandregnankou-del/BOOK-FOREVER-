@@ -193,116 +193,161 @@ paymentRoutes.post('/guest-checkout', async (req, res) => {
  * Webhook Wave Business Checkout
  * Événement : checkout.session.completed
  */
-paymentRoutes.post('/webhook/wave', express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }), (req, res) => {
-  const signature = req.headers['wave-signature'];
-  const webhookSecret = process.env.WAVE_WEBHOOK_SECRET;
+/** Comparaison en temps constant, pour ne pas fuiter la signature attendue. */
+function memeSignature(a, b) {
+  const x = Buffer.from(String(a || ''), 'utf8');
+  const y = Buffer.from(String(b || ''), 'utf8');
+  if (x.length === 0 || x.length !== y.length) return false;
+  return crypto.timingSafeEqual(x, y);
+}
 
-  if (webhookSecret && signature && req.rawBody) {
-    const hmac = crypto.createHmac('sha256', webhookSecret).update(req.rawBody).digest('hex');
-    if (hmac !== signature) {
-      console.warn('[Wave Webhook] Signature invalide');
-      return res.status(401).json({ error: 'Signature invalide' });
+/** Débloque la commande une seule fois. Renvoie true si c'est bien cette requête qui a payé. */
+function marquerPayee(order, provider, verificationStatus) {
+  const accessDays = Math.max(1, Number(getSettings().accessDays) || 30);
+  const info = db
+    .prepare(
+      `UPDATE orders
+          SET status = 'paid', provider = ?, validated_at = CURRENT_TIMESTAMP,
+              expires_at = date('now', '+' || ? || ' days'), verification_status = ?
+        WHERE id = ? AND status != 'paid'`,
+    )
+    .run(provider, accessDays, verificationStatus, order.id);
+
+  if (info.changes === 0) return false;
+
+  generateReceiptForOrder(order.id);
+
+  if (order.note && order.note.includes('Intégrale')) {
+    const chapitres = db
+      .prepare("SELECT id FROM chapters WHERE book_id = ? AND is_free = 0 AND status = 'published'")
+      .all(order.book_id);
+    for (const ch of chapitres) {
+      if (ch.id === order.chapter_id) continue;
+      db.prepare(
+        `INSERT OR IGNORE INTO orders
+           (reference, user_id, book_id, chapter_id, amount_xof, method, status, validated_at, expires_at, note)
+         VALUES (?, ?, ?, ?, 0, ?, 'paid', CURRENT_TIMESTAMP, date('now', '+' || ? || ' days'), 'Inclus dans Intégrale')`,
+      ).run(`${order.reference}-CH${ch.id}`, order.user_id, order.book_id, ch.id, provider, accessDays);
     }
   }
-
-  const event = req.body;
-  if (event?.type === 'checkout.session.completed') {
-    const session = event.data?.object || event.data;
-    const clientRef = session?.client_reference;
-    if (clientRef) {
-      const order = db.prepare('SELECT * FROM orders WHERE reference = ?').get(clientRef);
-      if (order && order.status !== 'paid') {
-        const accessDays = Math.max(1, Number(getSettings().accessDays) || 30);
-        db.prepare(`
-          UPDATE orders
-          SET status = 'paid', provider = 'wave_api', validated_at = CURRENT_TIMESTAMP,
-              expires_at = date('now', '+' || ? || ' days'),
-              verification_status = 'wave_webhook_verified'
-          WHERE id = ?
-        `).run(accessDays, order.id);
-
-        generateReceiptForOrder(order.id);
-
-        if (order.note && order.note.includes('Intégrale')) {
-          const allChapters = db.prepare("SELECT id FROM chapters WHERE book_id = ? AND is_free = 0 AND status = 'published'").all(order.book_id);
-          for (const ch of allChapters) {
-            if (ch.id !== order.chapter_id) {
-              db.prepare(`
-                INSERT OR REPLACE INTO orders (reference, user_id, book_id, chapter_id, amount_xof, method, status, validated_at, expires_at, note)
-                VALUES (?, ?, ?, ?, 0, 'wave_api', 'paid', CURRENT_TIMESTAMP, date('now', '+' || ? || ' days'), 'Inclus dans Intégrale')
-              `).run(`${order.reference}-CH${ch.id}`, order.user_id, order.book_id, ch.id, accessDays);
-            }
-          }
-        }
-        console.log(`[Wave Webhook] Commande ${order.reference} validée automatiquement.`);
-      }
-    }
-  }
-
-  res.status(200).json({ received: true });
-});
+  return true;
+}
 
 /**
- * Webhook IPN CinetPay
+ * Vérifie que le prestataire annonce bien le montant et la devise attendus.
+ * Échoue fermé : si le champ est absent, on refuse.
+ */
+function montantConforme(order, montantRecu, deviseRecue) {
+  const attendu = Number(order.amount_xof);
+  const recu = Number(montantRecu);
+  if (!Number.isFinite(recu)) return { ok: false, raison: 'montant absent' };
+  if (recu !== attendu) return { ok: false, raison: `montant ${recu} au lieu de ${attendu}` };
+  const devise = String(deviseRecue || '').toUpperCase();
+  if (!devise) return { ok: false, raison: 'devise absente' };
+  if (devise !== 'XOF') return { ok: false, raison: `devise ${devise}` };
+  return { ok: true };
+}
+
+/**
+ * Webhook Wave.
+ * Échoue fermé : sans secret configuré, le receveur est inactif (503).
+ * Sans signature, ou avec une signature qui ne correspond pas : 401.
+ */
+paymentRoutes.post(
+  '/webhook/wave',
+  (req, res) => {
+    const secret = process.env.WAVE_WEBHOOK_SECRET;
+    if (!secret) {
+      console.warn('[Wave Webhook] Receveur inactif : WAVE_WEBHOOK_SECRET absent.');
+      return res.status(503).json({ error: 'Webhook non configuré.' });
+    }
+
+    const signature = req.headers['wave-signature'];
+    if (!signature || !req.rawBody) {
+      console.warn('[Wave Webhook] Requête sans signature.');
+      return res.status(401).json({ error: 'Signature absente.' });
+    }
+
+    const attendu = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+    if (!memeSignature(attendu, signature)) {
+      console.warn('[Wave Webhook] Signature invalide.');
+      return res.status(401).json({ error: 'Signature invalide.' });
+    }
+
+    const event = req.body || {};
+    if (event.type !== 'checkout.session.completed') {
+      return res.status(200).json({ received: true, ignored: 'type inattendu' });
+    }
+
+    const session = event.data?.object || event.data || {};
+    const reference = session.client_reference;
+    if (!reference) return res.status(200).json({ received: true, ignored: 'sans référence' });
+
+    const order = db.prepare('SELECT * FROM orders WHERE reference = ?').get(reference);
+    if (!order) return res.status(200).json({ received: true, ignored: 'commande inconnue' });
+
+    const controle = montantConforme(order, session.amount, session.currency);
+    if (!controle.ok) {
+      console.warn(`[Wave Webhook] Rejeté (${reference}) : ${controle.raison}`);
+      return res.status(409).json({ error: 'Montant ou devise incohérent.', detail: controle.raison });
+    }
+
+    if (!marquerPayee(order, 'wave_api', 'wave_webhook_verified')) {
+      return res.status(200).json({ received: true, alreadyPaid: true });
+    }
+
+    console.log(`[Wave Webhook] Commande ${order.reference} validée automatiquement.`);
+    return res.status(200).json({ received: true, paid: true });
+  },
+);
+
+/**
+ * Webhook CinetPay.
+ * Échoue fermé : sans clés API configurées, le receveur est inactif (503).
+ * Le statut annoncé dans le corps n'est jamais cru : on réinterroge CinetPay.
  */
 paymentRoutes.post('/webhook/cinetpay', async (req, res) => {
-  const { cpm_trans_id, cpm_site_id, cpm_trans_status } = req.body || {};
-  if (!cpm_trans_id) return res.status(400).json({ error: 'Identifiant de transaction manquant' });
+  const cpm_trans_id = String(req.body?.cpm_trans_id || '');
+  if (!cpm_trans_id) return res.status(400).json({ error: 'Identifiant de transaction manquant.' });
 
-  const cinetpayApiKey = process.env.CINETPAY_API_KEY;
-  const cinetpaySiteId = process.env.CINETPAY_SITE_ID;
-
-  let isVerified = false;
-  if (cinetpayApiKey && cinetpaySiteId) {
-    try {
-      const checkResp = await fetch('https://api-checkout.cinetpay.com/v2/payment/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apikey: cinetpayApiKey,
-          site_id: cinetpaySiteId,
-          transaction_id: cpm_trans_id,
-        }),
-      });
-      const checkData = await checkResp.json();
-      if (checkData.code === '00' && checkData.data?.status === 'ACCEPTED') {
-        isVerified = true;
-      }
-    } catch (err) {
-      console.error('[CinetPay Check Error]', err);
-    }
-  } else if (cpm_trans_status === 'ACCEPTED') {
-    isVerified = true;
+  const apiKey = process.env.CINETPAY_API_KEY;
+  const siteId = process.env.CINETPAY_SITE_ID;
+  if (!apiKey || !siteId) {
+    console.warn('[CinetPay Webhook] Receveur inactif : clés API absentes.');
+    return res.status(503).json({ error: 'CinetPay non configuré.' });
   }
 
-  if (isVerified) {
-    const order = db.prepare('SELECT * FROM orders WHERE reference = ?').get(cpm_trans_id);
-    if (order && order.status !== 'paid') {
-      const accessDays = Math.max(1, Number(getSettings().accessDays) || 30);
-      db.prepare(`
-        UPDATE orders
-        SET status = 'paid', provider = 'cinetpay', validated_at = CURRENT_TIMESTAMP,
-            expires_at = date('now', '+' || ? || ' days'),
-            verification_status = 'cinetpay_ipn_verified'
-        WHERE id = ?
-      `).run(accessDays, order.id);
+  const order = db.prepare('SELECT * FROM orders WHERE reference = ?').get(cpm_trans_id);
+  if (!order) return res.status(200).json({ received: true, ignored: 'commande inconnue' });
 
-      generateReceiptForOrder(order.id);
-
-      if (order.note && order.note.includes('Intégrale')) {
-        const allChapters = db.prepare("SELECT id FROM chapters WHERE book_id = ? AND is_free = 0 AND status = 'published'").all(order.book_id);
-        for (const ch of allChapters) {
-          if (ch.id !== order.chapter_id) {
-            db.prepare(`
-              INSERT OR REPLACE INTO orders (reference, user_id, book_id, chapter_id, amount_xof, method, status, validated_at, expires_at, note)
-              VALUES (?, ?, ?, ?, 0, 'cinetpay', 'paid', CURRENT_TIMESTAMP, date('now', '+' || ? || ' days'), 'Inclus dans Intégrale')
-            `).run(`${order.reference}-CH${ch.id}`, order.user_id, order.book_id, ch.id, accessDays);
-          }
-        }
-      }
-      console.log(`[CinetPay Webhook] Commande ${order.reference} validée automatiquement.`);
-    }
+  let checkData = null;
+  try {
+    const checkResp = await fetch('https://api-checkout.cinetpay.com/v2/payment/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apikey: apiKey, site_id: siteId, transaction_id: cpm_trans_id }),
+    });
+    checkData = await checkResp.json();
+  } catch (err) {
+    console.error('[CinetPay Check Error]', err);
+    return res.status(502).json({ error: 'Vérification impossible auprès du prestataire.' });
   }
 
-  res.status(200).json({ received: true });
+  const donnees = checkData?.data || {};
+  if (checkData?.code !== '00' || donnees.status !== 'ACCEPTED') {
+    return res.status(202).json({ received: true, verified: false, status: donnees.status || null });
+  }
+
+  const controle = montantConforme(order, donnees.amount, donnees.currency);
+  if (!controle.ok) {
+    console.warn(`[CinetPay Webhook] Rejeté (${cpm_trans_id}) : ${controle.raison}`);
+    return res.status(409).json({ error: 'Montant ou devise incohérent.', detail: controle.raison });
+  }
+
+  if (!marquerPayee(order, 'cinetpay', 'cinetpay_ipn_verified')) {
+    return res.status(200).json({ received: true, alreadyPaid: true });
+  }
+
+  console.log(`[CinetPay Webhook] Commande ${order.reference} validée automatiquement.`);
+  return res.status(200).json({ received: true, paid: true });
 });

@@ -4,12 +4,14 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const root = path.resolve(import.meta.dirname, '..');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bf-test-'));
 const port = 3900 + Math.floor(Math.random() * 90);
 const base = `http://127.0.0.1:${port}`;
 const ADMIN = { email: 'admin@test.local', password: 'TestAdmin123!' };
+const WEBHOOK_SECRET = 'secret-de-test-webhook';
 let server;
 
 before(async () => {
@@ -20,6 +22,7 @@ before(async () => {
       PORT: String(port),
       DATA_DIR: dataDir,
       JWT_SECRET: 'test-secret',
+      WAVE_WEBHOOK_SECRET: WEBHOOK_SECRET,
       ADMIN_EMAIL: ADMIN.email,
       ADMIN_PASSWORD: ADMIN.password,
       NODE_ENV: 'test',
@@ -619,4 +622,146 @@ test('v53 — un lecteur ne peut ni supprimer ni archiver un chapitre', async ()
 
   const arch = await reader(`/api/admin/chapters/${cible.id}/archive`, { method: 'POST', body: {} });
   assert.equal(arch.status, 403);
+});
+
+/* ---------------------------------------------------------------------------
+   v53 — Les webhooks de paiement ne doivent jamais débloquer sans preuve.
+   Faille corrigée : sans clés CinetPay configurées, le statut « ACCEPTED »
+   annoncé dans le corps suffisait à marquer une commande payée ; et le webhook
+   Wave sautait la vérification dès que l'en-tête de signature était absent.
+   Chapitres utilisés : amour-perdu 8 à 12 (jamais achetés par les autres tests).
+--------------------------------------------------------------------------- */
+
+const LIVRE_PAIEMENT = 'amour-perdu';
+
+function signatureWave(corps) {
+  return crypto.createHmac('sha256', WEBHOOK_SECRET).update(corps).digest('hex');
+}
+
+async function posterWebhook(chemin, charge, signature) {
+  const corps = JSON.stringify(charge);
+  const headers = { 'Content-Type': 'application/json' };
+  if (signature !== undefined) headers['wave-signature'] = signature;
+  const res = await fetch(base + chemin, { method: 'POST', headers, body: corps });
+  const texte = await res.text();
+  let json = null;
+  try { json = JSON.parse(texte); } catch { json = null; }
+  return { status: res.status, json };
+}
+
+/* Un seul compte pour les cinq tests de paiement : l'inscription est limitée
+   en débit, et un compte peut acheter plusieurs chapitres différents. */
+let lecteurPaiement = null;
+async function nouveauLecteur() {
+  if (lecteurPaiement) return lecteurPaiement;
+  const c = client();
+  const r = await c('/api/auth/register', {
+    method: 'POST',
+    body: { email: 'paiement-v53@exemple.ci', password: 'MotDePasse2026!', name: 'Lecteur Paiement' },
+  });
+  assert.ok(r.status === 201 || r.status === 409, `inscription inattendue : ${r.status}`);
+  if (r.status === 409) {
+    await c('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'paiement-v53@exemple.ci', password: 'MotDePasse2026!' },
+    });
+  }
+  lecteurPaiement = c;
+  return c;
+}
+
+async function commandeEnAttente(c, chapterNumber) {
+  const ord = await c('/api/me/purchases', {
+    method: 'POST',
+    body: { bookSlug: LIVRE_PAIEMENT, chapterNumber, method: 'wave_link' },
+  });
+  assert.equal(ord.status, 201, `commande attendue en 201, reçu ${ord.status} ${JSON.stringify(ord.json)}`);
+  return ord.json.order;
+}
+
+async function etatChapitre(c, n) {
+  const r = await c(`/api/books/${LIVRE_PAIEMENT}/chapters/${n}`);
+  return { locked: r.json.locked, longueur: (r.json.chapter?.text || '').length };
+}
+
+test('v53 — faux webhook CinetPay : refusé, chapitre toujours verrouillé', async () => {
+  const c = await nouveauLecteur();
+  const order = await commandeEnAttente(c, 8);
+
+  assert.equal((await etatChapitre(c, 8)).locked, true);
+
+  const hook = await posterWebhook('/api/payments/webhook/cinetpay', {
+    cpm_trans_id: order.reference,
+    cpm_trans_status: 'ACCEPTED',
+  });
+  assert.equal(hook.status, 503, 'sans clés configurées, le receveur doit être inactif');
+
+  const apres = await etatChapitre(c, 8);
+  assert.equal(apres.locked, true, 'le chapitre ne doit pas s’être ouvert');
+  assert.equal(apres.longueur, 0);
+});
+
+test('v53 — webhook Wave sans signature : 401, chapitre verrouillé', async () => {
+  const c = await nouveauLecteur();
+  const order = await commandeEnAttente(c, 9);
+
+  const hook = await posterWebhook('/api/payments/webhook/wave', {
+    type: 'checkout.session.completed',
+    data: { object: { client_reference: order.reference, amount: 300, currency: 'XOF' } },
+  });
+  assert.equal(hook.status, 401);
+  assert.equal((await etatChapitre(c, 9)).locked, true);
+});
+
+test('v53 — webhook Wave avec signature invalide : 401', async () => {
+  const c = await nouveauLecteur();
+  const order = await commandeEnAttente(c, 10);
+
+  const hook = await posterWebhook(
+    '/api/payments/webhook/wave',
+    { type: 'checkout.session.completed', data: { object: { client_reference: order.reference, amount: 300, currency: 'XOF' } } },
+    'a'.repeat(64),
+  );
+  assert.equal(hook.status, 401);
+  assert.equal((await etatChapitre(c, 10)).locked, true);
+});
+
+test('v53 — webhook Wave signé mais montant faux : 409, aucun déblocage', async () => {
+  const c = await nouveauLecteur();
+  const order = await commandeEnAttente(c, 11);
+
+  const charge = {
+    type: 'checkout.session.completed',
+    data: { object: { client_reference: order.reference, amount: 50, currency: 'XOF' } },
+  };
+  const hook = await posterWebhook('/api/payments/webhook/wave', charge, signatureWave(JSON.stringify(charge)));
+  assert.equal(hook.status, 409);
+  assert.equal((await etatChapitre(c, 11)).locked, true);
+});
+
+test('v53 — webhook Wave signé et conforme : débloque une seule fois', async () => {
+  const c = await nouveauLecteur();
+  const order = await commandeEnAttente(c, 12);
+
+  const charge = {
+    type: 'checkout.session.completed',
+    data: { object: { client_reference: order.reference, amount: 300, currency: 'XOF' } },
+  };
+  const corps = JSON.stringify(charge);
+
+  const premier = await posterWebhook('/api/payments/webhook/wave', charge, signatureWave(corps));
+  assert.equal(premier.status, 200);
+  assert.equal(premier.json.paid, true);
+
+  const apres = await etatChapitre(c, 12);
+  assert.equal(apres.locked, false, 'le chapitre payé doit s’ouvrir');
+  assert.ok(apres.longueur > 100);
+
+  const second = await posterWebhook('/api/payments/webhook/wave', charge, signatureWave(corps));
+  assert.equal(second.status, 200);
+  assert.equal(second.json.alreadyPaid, true);
+
+  const achats = await c('/api/me/purchases');
+  const lignes = achats.json.purchases.filter((p) => p.chapter?.number === 12 && p.status === 'paid');
+  assert.equal(lignes.length, 1, 'une seule ligne payée pour ce chapitre');
 });
