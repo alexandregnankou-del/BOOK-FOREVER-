@@ -53,9 +53,11 @@ function readPrefs() {
       size: Math.min(1.4, Math.max(0.9, Number(raw.size) || 1)),
       theme: THEMES.includes(raw.theme) ? raw.theme : 'sepia',
       music: Boolean(raw.music),
+      spacing: Math.min(2.2, Math.max(1.5, Number(raw.spacing) || 1.85)),
+      letter: Math.min(0.06, Math.max(0, Number(raw.letter) || 0)),
     };
   } catch {
-    return { size: 1, theme: 'sepia', music: false };
+    return { size: 1, theme: 'sepia', music: false, spacing: 1.85, letter: 0 };
   }
 }
 
@@ -95,6 +97,7 @@ export default function Reader() {
   const [order, setOrder] = useState(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [marque, setMarque] = useState(null);
   const [prefs, setPrefs] = useState(readPrefs);
   const [tocOpen, setTocOpen] = useState(false);
   const [tocItems, setTocItems] = useState([]);
@@ -125,6 +128,104 @@ export default function Reader() {
   const cycleTheme = () =>
     setPrefs((p) => ({ ...p, theme: THEMES[(THEMES.indexOf(p.theme) + 1) % THEMES.length] }));
 
+  /* v54 : interligne et espacement des lettres réglables (Phase 8). */
+  const INTERLIGNES = [1.6, 1.85, 2.1];
+  const cycleSpacing = () =>
+    setPrefs((p) => {
+      const i = INTERLIGNES.findIndex((v) => v >= p.spacing - 0.01);
+      return { ...p, spacing: INTERLIGNES[(i + 1) % INTERLIGNES.length] };
+    });
+
+  /* Les réglages suivent le compte, plus seulement ce navigateur. */
+  const chargerPreferences = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { preferences } = await api.readingPreferences();
+      if (!preferences) return;
+      setPrefs((p) => ({
+        ...p,
+        theme: THEMES.includes(preferences.theme) ? preferences.theme : p.theme,
+        size: Math.min(1.4, Math.max(0.9, Number(preferences.fontScale) || p.size)),
+        spacing: Math.min(2.2, Math.max(1.5, Number(preferences.lineHeight) || p.spacing)),
+        letter: Math.min(0.06, Math.max(0, Number(preferences.letterSpacing) || 0)),
+      }));
+    } catch {
+      /* hors connexion : les réglages locaux restent utilisés */
+    }
+  }, [user]);
+
+  useEffect(() => {
+    chargerPreferences();
+  }, [chargerPreferences]);
+
+  const enregistrerPreferences = useCallback(() => {
+    if (!user) return;
+    api
+      .saveReadingPreferences({
+        theme: prefs.theme,
+        fontScale: prefs.size,
+        lineHeight: prefs.spacing,
+        letterSpacing: prefs.letter,
+      })
+      .catch(() => {});
+  }, [user, prefs.theme, prefs.size, prefs.spacing, prefs.letter]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(enregistrerPreferences, 800);
+    return () => window.clearTimeout(timer);
+  }, [enregistrerPreferences]);
+
+  /* v54 — marque-page : un paragraphe précis, enregistré sur le compte. */
+  const chargerMarquePage = useCallback(async () => {
+    if (!user) {
+      setMarque(null);
+      return;
+    }
+    try {
+      const { bookmarks } = await api.bookmarks(slug);
+      const ici = (bookmarks || []).find((m) => Number(m.chapter.number) === Number(number));
+      setMarque(ici ? { id: ici.id, paragraphIndex: ici.paragraphIndex } : null);
+    } catch {
+      setMarque(null);
+    }
+  }, [user, slug, number]);
+
+  useEffect(() => {
+    chargerMarquePage();
+  }, [chargerMarquePage]);
+
+  const basculerMarquePage = async () => {
+    if (!user) {
+      setNotice('Connectez-vous pour garder un marque-page sur tous vos appareils.');
+      return;
+    }
+    const ps = document.querySelectorAll('.reader-body .prose p');
+    let index = 0;
+    for (let i = 0; i < ps.length; i += 1) {
+      if (ps[i].getBoundingClientRect().top <= 140) index = i;
+      else break;
+    }
+    const extrait = (ps[index]?.textContent || '').slice(0, 200);
+    try {
+      const res = await api.toggleBookmark({
+        bookSlug: slug,
+        chapterNumber: Number(number),
+        paragraphIndex: index,
+        excerpt: extrait,
+      });
+      if (res.removed) {
+        setMarque((m) => (m && m.paragraphIndex === index ? null : m));
+        setNotice('Marque-page retiré.');
+      } else {
+        setMarque({ id: res.id, paragraphIndex: index });
+        setNotice('Marque-page posé sur ce passage.');
+      }
+      window.setTimeout(() => setNotice(''), 2600);
+    } catch {
+      setNotice('Marque-page indisponible pour le moment.');
+    }
+  };
+
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: '' }));
     try {
@@ -149,36 +250,84 @@ export default function Reader() {
     load();
   }, [load]);
 
-  /* Position de défilement : mémorisée localement et envoyée au compte. */
+  /* v54 — la position est un NUMÉRO DE PARAGRAPHE, pas un ratio de défilement.
+     Un ratio dépend de la taille de police et de la largeur de l'écran : le
+     lecteur ne retombait pas au même endroit en passant du téléphone à
+     l'ordinateur. Le paragraphe, lui, ne bouge pas. */
   useEffect(() => {
     if (state.loading || state.locked || !state.data) return;
     const key = `${slug}-${number}`;
     const posKey = `bf.pos.${slug}.${number}`;
 
+    const paragraphes = () => document.querySelectorAll('.reader-body .prose p');
+
+    const positionCourante = () => {
+      const ps = paragraphes();
+      if (!ps.length) return { index: 0, percent: 0 };
+      let index = 0;
+      for (let i = 0; i < ps.length; i += 1) {
+        if (ps[i].getBoundingClientRect().top <= 140) index = i;
+        else break;
+      }
+      return { index, percent: ps.length > 1 ? index / (ps.length - 1) : 0 };
+    };
+
     if (restored.current !== key) {
       restored.current = key;
-      const stored = Number(localStorage.getItem(posKey) || 0);
-      if (stored > 0.02) {
-        requestAnimationFrame(() => {
-          const max = document.documentElement.scrollHeight - window.innerHeight;
-          if (max > 0) window.scrollTo({ top: stored * max, behavior: 'auto' });
-        });
-      }
+      (async () => {
+        let cible = null;
+        if (user) {
+          try {
+            const { position } = await api.readingPosition(slug);
+            if (
+              position &&
+              Number(position.chapterNumber) === Number(number) &&
+              Number(position.paragraphIndex) > 0
+            ) {
+              cible = Number(position.paragraphIndex);
+            }
+          } catch {
+            /* hors connexion : on retombe sur le stockage local */
+          }
+        }
+        if (cible === null) {
+          const ratio = Number(localStorage.getItem(posKey) || 0);
+          const ps = paragraphes();
+          if (ratio > 0.02 && ps.length) cible = Math.round(ratio * (ps.length - 1));
+        }
+        if (cible !== null && cible > 0) {
+          requestAnimationFrame(() => {
+            const ps = paragraphes();
+            if (!ps.length) return;
+            const el = ps[Math.min(cible, ps.length - 1)];
+            if (el) el.scrollIntoView({ block: 'start', behavior: 'auto' });
+          });
+        }
+      })();
     }
 
     const onScroll = () => {
+      const pos = positionCourante();
       const max = document.documentElement.scrollHeight - window.innerHeight;
-      if (max <= 0) return;
-      const ratio = Math.min(1, Math.max(0, window.scrollY / max));
+      const ratio = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
       try {
         localStorage.setItem(posKey, String(ratio));
       } catch {
-        /* stockage plein : la position n'est pas mémorisée */
+        /* stockage plein : la position locale n'est pas mémorisée */
       }
       window.clearTimeout(scrollTimer.current);
       scrollTimer.current = window.setTimeout(() => {
         if (!user) return;
-        api.saveProgress({ bookSlug: slug, chapterNumber: Number(number), position: Number(ratio.toFixed(3)) }).catch(() => {});
+        api
+          .saveProgress({
+            bookSlug: slug,
+            chapterNumber: Number(number),
+            position: Number(ratio.toFixed(3)),
+            paragraphIndex: pos.index,
+            percent: Number(pos.percent.toFixed(3)),
+            device: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'bureau',
+          })
+          .catch(() => {});
       }, 1200);
     };
 
@@ -640,7 +789,15 @@ export default function Reader() {
   const { chapter, book, navigation } = state.data;
 
   return (
-    <div className="reader" data-theme={prefs.theme} style={{ '--reader-size': `${prefs.size}rem` }}>
+    <div
+      className="reader"
+      data-theme={prefs.theme}
+      style={{
+        '--reader-size': `${prefs.size}rem`,
+        '--reader-line': prefs.spacing,
+        '--reader-letter': `${prefs.letter}em`,
+      }}
+    >
       <audio ref={audioRef} src="/audio/lecture.mp3" loop preload="none" />
       <div className="reader-bar">
         <div className="wrap bar">
@@ -681,6 +838,25 @@ export default function Reader() {
               title={`Thème : ${prefs.theme}`}
             >
               {THEME_ICONS[prefs.theme]}
+            </button>
+            <button
+              type="button"
+              className="tool"
+              onClick={cycleSpacing}
+              aria-label={`Interligne ${prefs.spacing.toFixed(2)}`}
+              title={`Interligne : ${prefs.spacing.toFixed(2)}`}
+            >
+              ↕
+            </button>
+            <button
+              type="button"
+              className={`tool${marque ? ' on' : ''}`}
+              onClick={basculerMarquePage}
+              aria-label={marque ? 'Retirer le marque-page' : 'Poser un marque-page'}
+              aria-pressed={Boolean(marque)}
+              title={marque ? 'Retirer le marque-page' : 'Poser un marque-page'}
+            >
+              ⚑
             </button>
           </div>
         </div>
@@ -740,7 +916,9 @@ export default function Reader() {
 
         <div className="prose">
           {blocks.map((block, i) => (
-            <p key={i}>{block}</p>
+            <p key={i} className={marque && marque.paragraphIndex === i ? 'marque-page' : undefined}>
+              {block}
+            </p>
           ))}
         </div>
 

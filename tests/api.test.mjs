@@ -765,3 +765,128 @@ test('v53 — webhook Wave signé et conforme : débloque une seule fois', async
   const lignes = achats.json.purchases.filter((p) => p.chapter?.number === 12 && p.status === 'paid');
   assert.equal(lignes.length, 1, 'une seule ligne payée pour ce chapitre');
 });
+
+/* ---------------------------------------------------------------------------
+   v54 — Phase 8 : lecture, marque-pages, préférences.
+   La position doit être un numéro de paragraphe (pas un ratio de pixels), et
+   chaque lecteur ne doit accéder qu'à ses propres données.
+--------------------------------------------------------------------------- */
+
+test('v54 — la position de lecture est un paragraphe, pas un pixel', async () => {
+  await reader('/api/me/progress', {
+    method: 'POST',
+    body: {
+      bookSlug: 'amour-perdu',
+      chapterNumber: 2,
+      position: 0.42,
+      paragraphIndex: 7,
+      percent: 0.35,
+      device: 'test',
+    },
+  });
+
+  const r = await reader('/api/me/reading-position/amour-perdu');
+  assert.equal(r.status, 200);
+  assert.equal(r.json.position.chapterNumber, 2);
+  assert.equal(r.json.position.paragraphIndex, 7);
+  assert.equal(r.json.position.percent, 0.35);
+
+  // Un nouveau passage sur le même roman remplace l'ancien : une seule ligne.
+  await reader('/api/me/progress', {
+    method: 'POST',
+    body: { bookSlug: 'amour-perdu', chapterNumber: 3, paragraphIndex: 12, percent: 0.6 },
+  });
+  const r2 = await reader('/api/me/reading-position/amour-perdu');
+  assert.equal(r2.json.position.chapterNumber, 3);
+  assert.equal(r2.json.position.paragraphIndex, 12);
+
+  // La table historique reste alimentée pour les écrans qui l'utilisent.
+  const historique = await reader('/api/me/progress');
+  const ligne = historique.json.reading.find((x) => x.book.slug === 'amour-perdu');
+  assert.ok(ligne, 'la progression historique doit subsister');
+  assert.equal(ligne.chapter.number, 3);
+});
+
+test('v54 — marque-page : posé, listé, retiré, supprimé', async () => {
+  const cree = await reader('/api/me/bookmarks', {
+    method: 'POST',
+    body: { bookSlug: 'amour-perdu', chapterNumber: 2, paragraphIndex: 5, excerpt: 'Un passage retenu.' },
+  });
+  assert.equal(cree.status, 201);
+  assert.equal(cree.json.created, true);
+
+  const liste = await reader('/api/me/bookmarks?bookSlug=amour-perdu');
+  const pose = liste.json.bookmarks.find((m) => m.paragraphIndex === 5);
+  assert.ok(pose, 'le marque-page doit apparaître dans la liste');
+  assert.equal(pose.chapter.number, 2);
+  assert.equal(pose.excerpt, 'Un passage retenu.');
+
+  // Re-cliquer sur le même paragraphe le retire.
+  const bascule = await reader('/api/me/bookmarks', {
+    method: 'POST',
+    body: { bookSlug: 'amour-perdu', chapterNumber: 2, paragraphIndex: 5 },
+  });
+  assert.equal(bascule.json.removed, true);
+
+  const apres = await reader('/api/me/bookmarks?bookSlug=amour-perdu');
+  assert.ok(!apres.json.bookmarks.some((m) => m.paragraphIndex === 5));
+
+  // Suppression explicite par identifiant, puis 404 au second essai.
+  const autre = await reader('/api/me/bookmarks', {
+    method: 'POST',
+    body: { bookSlug: 'amour-perdu', chapterNumber: 2, paragraphIndex: 9 },
+  });
+  const id = autre.json.id;
+  const suppr = await reader(`/api/me/bookmarks/${id}`, { method: 'DELETE' });
+  assert.equal(suppr.status, 200);
+  const encore = await reader(`/api/me/bookmarks/${id}`, { method: 'DELETE' });
+  assert.equal(encore.status, 404);
+});
+
+test('v54 — préférences de lecture : enregistrées et bornées', async () => {
+  const avant = await reader('/api/me/reading-preferences');
+  assert.equal(avant.status, 200);
+
+  const enr = await reader('/api/me/reading-preferences', {
+    method: 'PATCH',
+    body: { theme: 'dark', fontScale: 9, lineHeight: 0.2, letterSpacing: 5 },
+  });
+  assert.equal(enr.status, 200);
+  assert.equal(enr.json.preferences.theme, 'dark');
+  assert.equal(enr.json.preferences.fontScale, 1.5, 'taille plafonnée à 1.5');
+  assert.equal(enr.json.preferences.lineHeight, 1.4, 'interligne plancher à 1.4');
+  assert.equal(enr.json.preferences.letterSpacing, 0.08, 'espacement plafonné à 0.08');
+
+  const relu = await reader('/api/me/reading-preferences');
+  assert.equal(relu.json.preferences.theme, 'dark');
+  assert.equal(relu.json.preferences.fontScale, 1.5);
+
+  // Un thème inconnu retombe sur sépia plutôt que d'être stocké tel quel.
+  const bidon = await reader('/api/me/reading-preferences', {
+    method: 'PATCH',
+    body: { theme: 'neon', fontScale: 1, lineHeight: 1.85, letterSpacing: 0 },
+  });
+  assert.equal(bidon.json.preferences.theme, 'sepia');
+});
+
+test('v54 — un lecteur ne voit ni ne supprime les marque-pages d’un autre', async () => {
+  const cree = await reader('/api/me/bookmarks', {
+    method: 'POST',
+    body: { bookSlug: 'amour-perdu', chapterNumber: 2, paragraphIndex: 21, excerpt: 'Privé.' },
+  });
+  assert.equal(cree.status, 201);
+  const id = cree.json.id;
+
+  const vueAutre = await admin('/api/me/bookmarks');
+  assert.equal(vueAutre.status, 200);
+  assert.ok(
+    !vueAutre.json.bookmarks.some((m) => m.id === id),
+    'les marque-pages d’un autre compte ne doivent pas apparaître',
+  );
+
+  const suppression = await admin(`/api/me/bookmarks/${id}`, { method: 'DELETE' });
+  assert.equal(suppression.status, 404);
+
+  const toujours = await reader('/api/me/bookmarks?bookSlug=amour-perdu');
+  assert.ok(toujours.json.bookmarks.some((m) => m.id === id), 'le marque-page du lecteur est intact');
+});

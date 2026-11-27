@@ -3501,3 +3501,39 @@ main > .page { padding-top: 8px; padding-bottom: 32px; }
 }
 
 
+
+/* ==========================================================================
+   v54 — Phase 8 : confort de lecture
+   Interligne et espacement des lettres réglables, marque-page visible.
+   ========================================================================== */
+.reader-body .prose {
+  line-height: var(--reader-line, 1.85);
+  letter-spacing: var(--reader-letter, 0);
+}
+
+.reader-body .prose p.marque-page {
+  position: relative;
+}
+.reader-body .prose p.marque-page::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 0.55em;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid var(--gold);
+}
+@media (max-width: 560px) {
+  .reader-body .prose p.marque-page::before {
+    left: -9px;
+    border-left-width: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reader-body .prose {
+    transition: none;
+  }
+}

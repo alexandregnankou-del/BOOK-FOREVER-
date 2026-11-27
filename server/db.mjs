@@ -166,6 +166,49 @@ CREATE TABLE IF NOT EXISTS favorites (
   UNIQUE (user_id, book_id)
 );
 
+/* ---------- v54 : lecture (Phase 8) ----------
+   reading_progress : la position est un NUMÉRO DE PARAGRAPHE, pas un ratio de
+   défilement. Elle reste valable quand la taille de police ou l'écran change.
+   bookmarks : marque-pages par compte, synchronisés entre appareils.
+   reading_preferences : les réglages suivent le lecteur, plus seulement le
+   navigateur.
+   Ces tables sont additives : la table progress d'origine est conservée et
+   continue d'être alimentée pour les écrans qui l'utilisent déjà.          */
+CREATE TABLE IF NOT EXISTS reading_progress (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+  paragraph_index INTEGER NOT NULL DEFAULT 0,
+  percent REAL NOT NULL DEFAULT 0,
+  device TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, book_id)
+);
+
+CREATE TABLE IF NOT EXISTS bookmarks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+  paragraph_index INTEGER NOT NULL DEFAULT 0,
+  excerpt TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, chapter_id, paragraph_index)
+);
+
+CREATE TABLE IF NOT EXISTS reading_preferences (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  theme TEXT NOT NULL DEFAULT 'sepia',
+  font_scale REAL NOT NULL DEFAULT 1,
+  line_height REAL NOT NULL DEFAULT 1.85,
+  letter_spacing REAL NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_reading_progress_user ON reading_progress(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id, book_id);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL DEFAULT ''

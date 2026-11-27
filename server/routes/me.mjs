@@ -227,7 +227,166 @@ meRoutes.post('/progress', (req, res) => {
       position = excluded.position,
       updated_at = CURRENT_TIMESTAMP`)
     .run(req.user.id, book.id, chapter.id, position);
+
+  /* v54 : la position fine est un numéro de paragraphe, pas un ratio de pixels.
+     On l'enregistre dans reading_progress quand le lecteur la fournit. */
+  const paragraphe = Number(req.body?.paragraphIndex);
+  if (Number.isFinite(paragraphe) && paragraphe >= 0) {
+    const pourcentage = Math.max(0, Math.min(1, Number(req.body?.percent) || position));
+    db.prepare(`
+      INSERT INTO reading_progress (user_id, book_id, chapter_id, paragraph_index, percent, device, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id, book_id) DO UPDATE SET
+        chapter_id = excluded.chapter_id,
+        paragraph_index = excluded.paragraph_index,
+        percent = excluded.percent,
+        device = excluded.device,
+        updated_at = CURRENT_TIMESTAMP`)
+      .run(req.user.id, book.id, chapter.id, Math.round(paragraphe), pourcentage, String(req.body?.device || '').slice(0, 40));
+  }
+
   res.json({ ok: true });
+});
+
+/* ---------- v54 : lecture, marque-pages, préférences (Phase 8) ----------
+   Toutes ces routes filtrent sur req.user.id : un lecteur ne peut lire ni
+   écrire les données d'un autre. SQLite n'a pas de RLS, l'autorisation est
+   donc portée par le code, comme pour les autres tables.                    */
+
+function trouverChapitre(bookSlug, chapterNumber) {
+  const book = db.prepare('SELECT id, slug FROM books WHERE slug = ?').get(String(bookSlug || ''));
+  if (!book) return null;
+  const chapter = db
+    .prepare('SELECT id, number FROM chapters WHERE book_id = ? AND number = ?')
+    .get(book.id, Number(chapterNumber));
+  if (!chapter) return null;
+  return { book, chapter };
+}
+
+meRoutes.get('/reading-position/:slug', (req, res) => {
+  const book = db.prepare('SELECT id FROM books WHERE slug = ?').get(String(req.params.slug || ''));
+  if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
+  const row = db
+    .prepare(
+      `SELECT rp.paragraph_index, rp.percent, c.number AS chapter_number
+         FROM reading_progress rp
+         JOIN chapters c ON c.id = rp.chapter_id
+        WHERE rp.user_id = ? AND rp.book_id = ?`,
+    )
+    .get(req.user.id, book.id);
+  if (!row) return res.json({ position: null });
+  res.json({
+    position: {
+      chapterNumber: row.chapter_number,
+      paragraphIndex: row.paragraph_index,
+      percent: row.percent,
+    },
+  });
+});
+
+meRoutes.get('/reading-preferences', (req, res) => {
+  const row = db.prepare('SELECT * FROM reading_preferences WHERE user_id = ?').get(req.user.id);
+  res.json({
+    preferences: row
+      ? {
+          theme: row.theme,
+          fontScale: row.font_scale,
+          lineHeight: row.line_height,
+          letterSpacing: row.letter_spacing,
+        }
+      : null,
+  });
+});
+
+meRoutes.patch('/reading-preferences', (req, res) => {
+  const themes = ['sepia', 'light', 'dark'];
+  const theme = themes.includes(req.body?.theme) ? req.body.theme : 'sepia';
+  const nombre = (valeur, min, max, defaut) => {
+    const n = Number(valeur);
+    if (!Number.isFinite(n)) return defaut;
+    return Math.min(max, Math.max(min, Number(n.toFixed(3))));
+  };
+  const fontScale = nombre(req.body?.fontScale, 0.9, 1.5, 1);
+  const lineHeight = nombre(req.body?.lineHeight, 1.4, 2.4, 1.85);
+  const letterSpacing = nombre(req.body?.letterSpacing, 0, 0.08, 0);
+
+  db.prepare(
+    `INSERT INTO reading_preferences (user_id, theme, font_scale, line_height, letter_spacing, updated_at)
+     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(user_id) DO UPDATE SET
+       theme = excluded.theme,
+       font_scale = excluded.font_scale,
+       line_height = excluded.line_height,
+       letter_spacing = excluded.letter_spacing,
+       updated_at = CURRENT_TIMESTAMP`,
+  ).run(req.user.id, theme, fontScale, lineHeight, letterSpacing);
+
+  res.json({ ok: true, preferences: { theme, fontScale, lineHeight, letterSpacing } });
+});
+
+meRoutes.get('/bookmarks', (req, res) => {
+  const slug = String(req.query.bookSlug || '');
+  const params = [req.user.id];
+  let filtre = '';
+  if (slug) {
+    filtre = ' AND b.slug = ?';
+    params.push(slug);
+  }
+  const rows = db
+    .prepare(
+      `SELECT bm.id, bm.paragraph_index, bm.excerpt, bm.created_at,
+              b.slug AS book_slug, b.title AS book_title,
+              c.number AS chapter_number, c.title AS chapter_title
+         FROM bookmarks bm
+         JOIN books b ON b.id = bm.book_id
+         JOIN chapters c ON c.id = bm.chapter_id
+        WHERE bm.user_id = ?${filtre}
+        ORDER BY bm.created_at DESC`,
+    )
+    .all(...params);
+
+  res.json({
+    bookmarks: rows.map((r) => ({
+      id: r.id,
+      paragraphIndex: r.paragraph_index,
+      excerpt: r.excerpt,
+      createdAt: r.created_at,
+      book: { slug: r.book_slug, title: r.book_title },
+      chapter: { number: r.chapter_number, title: r.chapter_title },
+    })),
+  });
+});
+
+meRoutes.post('/bookmarks', (req, res) => {
+  const cible = trouverChapitre(req.body?.bookSlug, req.body?.chapterNumber);
+  if (!cible) return res.status(404).json({ error: 'Chapitre introuvable.' });
+  const paragraphe = Math.max(0, Math.round(Number(req.body?.paragraphIndex) || 0));
+  const extrait = String(req.body?.excerpt || '').slice(0, 240);
+
+  const existe = db
+    .prepare('SELECT id FROM bookmarks WHERE user_id = ? AND chapter_id = ? AND paragraph_index = ?')
+    .get(req.user.id, cible.chapter.id, paragraphe);
+  if (existe) {
+    db.prepare('DELETE FROM bookmarks WHERE id = ?').run(existe.id);
+    return res.json({ ok: true, removed: true, id: existe.id });
+  }
+
+  const info = db
+    .prepare(
+      `INSERT INTO bookmarks (user_id, book_id, chapter_id, paragraph_index, excerpt)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(req.user.id, cible.book.id, cible.chapter.id, paragraphe, extrait);
+
+  res.status(201).json({ ok: true, created: true, id: Number(info.lastInsertRowid) });
+});
+
+meRoutes.delete('/bookmarks/:id', (req, res) => {
+  const info = db
+    .prepare('DELETE FROM bookmarks WHERE id = ? AND user_id = ?')
+    .run(Number(req.params.id), req.user.id);
+  if (info.changes === 0) return res.status(404).json({ error: 'Marque-page introuvable.' });
+  res.json({ ok: true, removed: true });
 });
 
 /* ---------- Favoris (v7) ---------- */

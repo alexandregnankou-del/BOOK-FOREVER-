@@ -62,6 +62,14 @@ export const api = {
   buyBookFull: (body) => request('/api/me/purchases/book', { method: 'POST', body }),
   progress: () => request('/api/me/progress'),
   saveProgress: (body) => request('/api/me/progress', { method: 'POST', body }),
+  /* v54 : lecture (Phase 8) */
+  readingPosition: (slug) => request(`/api/me/reading-position/${encodeURIComponent(slug)}`),
+  readingPreferences: () => request('/api/me/reading-preferences'),
+  saveReadingPreferences: (body) => request('/api/me/reading-preferences', { method: 'PATCH', body }),
+  bookmarks: (slug) =>
+    request(`/api/me/bookmarks${slug ? `?bookSlug=${encodeURIComponent(slug)}` : ''}`),
+  toggleBookmark: (body) => request('/api/me/bookmarks', { method: 'POST', body }),
+  deleteBookmark: (id) => request(`/api/me/bookmarks/${id}`, { method: 'DELETE' }),
   overview: () => request('/api/me/overview'),
   audience: () => request('/api/me/audience'),
   viewBook: (slug, chapterNumber) =>
