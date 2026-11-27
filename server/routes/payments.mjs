@@ -204,14 +204,21 @@ function memeSignature(a, b) {
 /** Débloque la commande une seule fois. Renvoie true si c'est bien cette requête qui a payé. */
 function marquerPayee(order, provider, verificationStatus) {
   const accessDays = Math.max(1, Number(getSettings().accessDays) || 30);
+  /* v55 : achat définitif par défaut → expires_at NULL. */
+  const permanentAccess = process.env.PURCHASE_ACCESS !== 'days';
+  const expiration = permanentAccess ? 'NULL' : "date('now', '+' || ? || ' days')";
+  const params = permanentAccess
+    ? [provider, verificationStatus, order.id]
+    : [provider, accessDays, verificationStatus, order.id];
+
   const info = db
     .prepare(
       `UPDATE orders
           SET status = 'paid', provider = ?, validated_at = CURRENT_TIMESTAMP,
-              expires_at = date('now', '+' || ? || ' days'), verification_status = ?
+              expires_at = ${expiration}, verification_status = ?
         WHERE id = ? AND status != 'paid'`,
     )
-    .run(provider, accessDays, verificationStatus, order.id);
+    .run(...params);
 
   if (info.changes === 0) return false;
 
@@ -226,8 +233,10 @@ function marquerPayee(order, provider, verificationStatus) {
       db.prepare(
         `INSERT OR IGNORE INTO orders
            (reference, user_id, book_id, chapter_id, amount_xof, method, status, validated_at, expires_at, note)
-         VALUES (?, ?, ?, ?, 0, ?, 'paid', CURRENT_TIMESTAMP, date('now', '+' || ? || ' days'), 'Inclus dans Intégrale')`,
-      ).run(`${order.reference}-CH${ch.id}`, order.user_id, order.book_id, ch.id, provider, accessDays);
+         VALUES (?, ?, ?, ?, 0, ?, 'paid', CURRENT_TIMESTAMP, ${expiration}, 'Inclus dans Intégrale')`,
+      ).run(...(permanentAccess
+        ? [`${order.reference}-CH${ch.id}`, order.user_id, order.book_id, ch.id, provider]
+        : [`${order.reference}-CH${ch.id}`, order.user_id, order.book_id, ch.id, provider, accessDays]));
     }
   }
   return true;

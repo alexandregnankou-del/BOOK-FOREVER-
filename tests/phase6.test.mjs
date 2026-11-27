@@ -119,8 +119,9 @@ test('Phase 6 - Consultation des reçus par le lecteur (Mes transactions)', asyn
   assert.equal(receipt.amountXof, 300);
   assert.equal(receipt.currency, 'XOF');
   assert.equal(receipt.status, 'confirmed');
-  assert.equal(receipt.accessType, 'chapter_30d');
-  assert.ok(receipt.expiresAt, 'La date d expiration 30 jours doit être définie');
+  /* v55 : un achat de chapitre est définitif. Le reçu doit le dire. */
+  assert.equal(receipt.accessType, 'chapter_permanent');
+  assert.equal(receipt.expiresAt, '', 'un achat définitif ne porte pas de date expiration');
 
   // Détail du reçu avec mentions légales vendeur
   const detail = await reader(`/api/me/receipts/${receipt.id}`);

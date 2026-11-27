@@ -6,6 +6,9 @@ import config, { CONTEST } from './config.mjs';
 
 
 export const db = new Database(config.dbFile);
+/* v55 : un achat de chapitre donne un acces definitif.
+   PURCHASE_ACCESS=days revient a un acces limite dans le temps. */
+const PERMANENT_ACCESS = process.env.PURCHASE_ACCESS !== 'days';
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -209,6 +212,42 @@ CREATE TABLE IF NOT EXISTS reading_preferences (
 CREATE INDEX IF NOT EXISTS idx_reading_progress_user ON reading_progress(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id, book_id);
 
+/* ---------- v55 : edition editoriale (Phase 9) ----------
+   chapter_versions : chaque enregistrement d'un chapitre laisse une trace.
+                      Rien n'est jamais ecrase.
+   admin_audit_log  : qui a fait quoi, sur quel objet, avec l'etat avant/apres.
+   Les deux tables sont additives : aucune autre table n'est modifiee ici.   */
+CREATE TABLE IF NOT EXISTS chapter_versions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+  version_no INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  text TEXT NOT NULL DEFAULT '',
+  words INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft',
+  note TEXT NOT NULL DEFAULT '',
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (chapter_id, version_no)
+);
+
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  actor_email TEXT NOT NULL DEFAULT '',
+  action TEXT NOT NULL,
+  object TEXT NOT NULL DEFAULT '',
+  object_id INTEGER,
+  before_json TEXT NOT NULL DEFAULT '',
+  after_json TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_versions_chapter ON chapter_versions(chapter_id, version_no DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_objet ON admin_audit_log(object, object_id);
+CREATE INDEX IF NOT EXISTS idx_audit_date ON admin_audit_log(created_at DESC);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL DEFAULT ''
@@ -352,12 +391,55 @@ addColumn('orders', 'verification_status', "TEXT NOT NULL DEFAULT 'manual'");
 /* v53 : archivage d'un chapitre (on dépublie au lieu de supprimer) */
 addColumn('chapters', 'archived_at', 'TEXT');
 addColumn('chapters', 'archived_reason', "TEXT NOT NULL DEFAULT ''");
+/* v55 : DRAFT / REVIEW / PUBLISHED / ARCHIVED, sans toucher au CHECK existant. */
+addColumn('chapters', 'editorial_status', "TEXT NOT NULL DEFAULT 'draft'");
 /* v22 : pass court, packs de crédits, parrainage */
 addColumn('subscriptions', 'plan', "TEXT NOT NULL DEFAULT 'monthly'");
 addColumn('subscriptions', 'days', 'INTEGER NOT NULL DEFAULT 30');
 addColumn('users', 'referral_code', "TEXT NOT NULL DEFAULT ''");
 addColumn('users', 'referred_by', 'INTEGER');
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral ON users(referral_code) WHERE referral_code <> ''");
+
+/* ---------- v55 : migrations ponctuelles, tracées par un marqueur ----------
+   Chacune ne s'exécute qu'une fois. Aucune ligne n'est supprimée.          */
+function migrationDejaFaite(nom) {
+  return Boolean(db.prepare('SELECT 1 FROM settings WHERE key = ?').get(`migration_${nom}`));
+}
+
+function marquerMigration(nom) {
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+    `migration_${nom}`,
+    new Date().toISOString(),
+  );
+}
+
+/* 1. Statut éditorial initial = visibilité réelle du chapitre. */
+if (!migrationDejaFaite('v55_editorial')) {
+  const info = db
+    .prepare(
+      `UPDATE chapters
+          SET editorial_status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END
+        WHERE editorial_status IS NULL OR editorial_status = ''`,
+    )
+    .run();
+  marquerMigration('v55_editorial');
+  if (info.changes) console.log(`[migration] statut éditorial initialisé sur ${info.changes} chapitre(s).`);
+}
+
+/* 2. Achat de chapitre définitif : les droits déjà vendus ne doivent pas
+      s'éteindre au bout de 30 jours. Seules les commandes payées sont
+      concernées, et uniquement si l'accès permanent est actif. */
+if (PERMANENT_ACCESS && !migrationDejaFaite('v55_acces_permanent')) {
+  const info = db
+    .prepare(
+      `UPDATE orders SET expires_at = NULL
+        WHERE status = 'paid' AND expires_at IS NOT NULL`,
+    )
+    .run();
+  marquerMigration('v55_acces_permanent');
+  if (info.changes) console.log(`[migration] ${info.changes} accès rendus définitifs.`);
+}
+
 
 
 export const DEFAULT_SETTINGS = {
@@ -773,16 +855,23 @@ export function generateReceiptForOrder(orderId) {
   const confirmedAt = order.validated_at || new Date().toISOString();
   const accessStartsAt = confirmedAt;
   const accessDays = Math.max(1, Number(getSettings().accessDays) || 30);
-  const expiresAt =
-    order.expires_at ||
-    new Date(new Date(confirmedAt).getTime() + accessDays * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  /* v55 : un achat de chapitre est definitif (expires_at NULL cote commande).
+     Le recu doit dire la meme chose que le droit reellement accorde. */
+  const permanent = !order.expires_at && PERMANENT_ACCESS;
+  const accessType = permanent ? 'chapter_permanent' : 'chapter_30d';
+  const expiresAt = permanent
+    ? ''
+    : order.expires_at ||
+      new Date(new Date(confirmedAt).getTime() + accessDays * 24 * 3600 * 1000)
+        .toISOString()
+        .slice(0, 10);
 
   db.prepare(`
     INSERT INTO receipts (
       receipt_number, order_id, user_id, reference, book_title, book_slug,
       chapter_number, chapter_title, amount_xof, currency, payment_method,
       status, access_type, confirmed_at, access_starts_at, expires_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'XOF', ?, 'confirmed', 'chapter_30d', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'XOF', ?, 'confirmed', ?, ?, ?, ?)
   `).run(
     receiptNumber,
     order.id,
@@ -794,6 +883,7 @@ export function generateReceiptForOrder(orderId) {
     order.chapter_title,
     order.amount_xof,
     order.method,
+    accessType,
     confirmedAt,
     accessStartsAt,
     expiresAt,

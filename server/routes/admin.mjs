@@ -216,8 +216,9 @@ adminRoutes.post('/books/:id/chapters', (req, res) => {
   if (!book) return res.status(404).json({ error: 'Roman introuvable.' });
   const next = db.prepare('SELECT COALESCE(MAX(number),0) + 1 AS n FROM chapters WHERE book_id = ?').get(book.id).n;
   const text = String(req.body?.text || '');
+  const statut = req.body?.publish === false ? 'draft' : 'published';
   const info = db
-    .prepare('INSERT INTO chapters (book_id, number, title, text, is_free, words, status) VALUES (?,?,?,?,?,?,?)')
+    .prepare('INSERT INTO chapters (book_id, number, title, text, is_free, words, status, editorial_status) VALUES (?,?,?,?,?,?,?,?)')
     .run(
       book.id,
       Number(req.body?.number) || next,
@@ -225,26 +226,210 @@ adminRoutes.post('/books/:id/chapters', (req, res) => {
       text,
       req.body?.isFree ? 1 : 0,
       countWords(text),
-      req.body?.publish === false ? 'draft' : 'published',
+      statut,
+      statut,
     );
-  res.status(201).json({ chapter: db.prepare('SELECT * FROM chapters WHERE id = ?').get(info.lastInsertRowid) });
+  const cree = db.prepare('SELECT * FROM chapters WHERE id = ?').get(info.lastInsertRowid);
+  /* version 1 : l'état d'origine est toujours récupérable */
+  enregistrerVersion(cree.id, cree, req.user?.id, 'création');
+  journaliser(req, 'chapter.create', 'chapter', cree.id, null, {
+    title: cree.title, words: cree.words, status: cree.status,
+  });
+  res.status(201).json({ chapter: cree });
 });
+
+/* ---------- v55 : journal des actions sensibles (Phase 9) ---------- */
+function journaliser(req, action, objet, objetId, avant, apres) {
+  try {
+    db.prepare(
+      `INSERT INTO admin_audit_log (actor_id, actor_email, action, object, object_id, before_json, after_json, ip)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      req.user?.id ?? null,
+      String(req.user?.email || ''),
+      action,
+      objet,
+      objetId ?? null,
+      avant ? JSON.stringify(avant).slice(0, 4000) : '',
+      apres ? JSON.stringify(apres).slice(0, 4000) : '',
+      String(req.ip || '').slice(0, 60),
+    );
+  } catch (err) {
+    console.error('[journal]', err.message);
+  }
+}
+
+/* ---------- v55 : versions de chapitre (Phase 9) ---------- */
+function enregistrerVersion(chapterId, contenu, acteurId, note = '') {
+  const suivante =
+    (db
+      .prepare('SELECT COALESCE(MAX(version_no), 0) AS v FROM chapter_versions WHERE chapter_id = ?')
+      .get(chapterId).v || 0) + 1;
+  db.prepare(
+    `INSERT INTO chapter_versions (chapter_id, version_no, title, text, words, status, note, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    chapterId,
+    suivante,
+    contenu.title || '',
+    contenu.text || '',
+    Number(contenu.words) || 0,
+    contenu.status || 'draft',
+    String(note).slice(0, 200),
+    acteurId ?? null,
+  );
+  return suivante;
+}
+
+const STATUTS_EDITORIAUX = ['draft', 'review', 'published', 'archived'];
 
 adminRoutes.patch('/chapters/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM chapters WHERE id = ?').get(Number(req.params.id));
   if (!row) return res.status(404).json({ error: 'Chapitre introuvable.' });
   const text = req.body?.text ?? row.text;
-  db.prepare(`UPDATE chapters SET number=?, title=?, text=?, is_free=?, words=?, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+  const title = req.body?.title ?? row.title;
+
+  /* v55 — statut éditorial : DRAFT / REVIEW / PUBLISHED / ARCHIVED.
+     `status` reste la seule source de vérité pour la visibilité publique :
+     seul 'published' rend le chapitre visible. Les quatre états éditoriaux
+     sont conservés à part, ce qui évite de reconstruire la table (SQLite ne
+     sait pas modifier une contrainte CHECK existante). */
+  let editorial = row.editorial_status || (row.status === 'published' ? 'published' : 'draft');
+  if (req.body?.editorialStatus !== undefined) {
+    if (!STATUTS_EDITORIAUX.includes(req.body.editorialStatus)) {
+      return res.status(400).json({
+        error: `Statut éditorial inconnu. Valeurs acceptées : ${STATUTS_EDITORIAUX.join(', ')}.`,
+        accepted: STATUTS_EDITORIAUX,
+      });
+    }
+    editorial = req.body.editorialStatus;
+  }
+  if (req.body?.status !== undefined && req.body?.editorialStatus === undefined) {
+    editorial = req.body.status === 'published' ? 'published' : 'draft';
+  }
+
+  const publie = editorial === 'published' && !row.archived_at;
+  const statutTechnique = publie ? 'published' : 'draft';
+
+  db.prepare(`UPDATE chapters SET number=?, title=?, text=?, is_free=?, words=?, status=?, editorial_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(
       req.body?.number != null ? Number(req.body.number) : row.number,
-      req.body?.title ?? row.title,
+      title,
       text,
       req.body?.isFree != null ? (req.body.isFree ? 1 : 0) : row.is_free,
       countWords(text),
-      req.body?.status ?? row.status,
+      statutTechnique,
+      editorial,
       row.id,
     );
-  res.json({ chapter: db.prepare('SELECT * FROM chapters WHERE id = ?').get(row.id) });
+
+  const apres = db.prepare('SELECT * FROM chapters WHERE id = ?').get(row.id);
+
+  /* Une version est enregistrée à chaque changement de contenu, pour pouvoir
+     revenir en arrière sans rien perdre. */
+  if (title !== row.title || text !== row.text) {
+    const numero = enregistrerVersion(
+      row.id,
+      { title, text, words: countWords(text), status: editorial },
+      req.user?.id,
+      'enregistrement',
+    );
+    journaliser(req, 'chapter.update', 'chapter', row.id,
+      { title: row.title, words: row.words, status: row.status, editorial: row.editorial_status },
+      { title, words: countWords(text), status: editorial, version: numero });
+  } else if (editorial !== (row.editorial_status || '')) {
+    journaliser(req, 'chapter.status', 'chapter', row.id,
+      { editorial: row.editorial_status }, { editorial });
+  }
+
+  res.json({ chapter: apres });
+});
+
+/** Liste des versions d'un chapitre, la plus récente d'abord. */
+adminRoutes.get('/chapters/:id/versions', (req, res) => {
+  const row = db.prepare('SELECT id FROM chapters WHERE id = ?').get(Number(req.params.id));
+  if (!row) return res.status(404).json({ error: 'Chapitre introuvable.' });
+  const versions = db
+    .prepare(
+      `SELECT v.id, v.version_no, v.title, v.words, v.status, v.note, v.created_at,
+              COALESCE(u.email, '') AS auteur
+         FROM chapter_versions v
+         LEFT JOIN users u ON u.id = v.created_by
+        WHERE v.chapter_id = ?
+        ORDER BY v.version_no DESC`,
+    )
+    .all(row.id);
+  res.json({ versions });
+});
+
+/** Aperçu : renvoie le chapitre quel que soit son statut, réservé à l'admin. */
+adminRoutes.get('/chapters/:id/preview', (req, res) => {
+  const row = db.prepare('SELECT * FROM chapters WHERE id = ?').get(Number(req.params.id));
+  if (!row) return res.status(404).json({ error: 'Chapitre introuvable.' });
+  const book = db.prepare('SELECT slug, title, author FROM books WHERE id = ?').get(row.book_id);
+  res.json({
+    preview: true,
+    book,
+    chapter: {
+      id: row.id,
+      number: row.number,
+      title: row.title,
+      text: row.text,
+      words: row.words,
+      isFree: Boolean(row.is_free),
+      status: row.status,
+      editorialStatus: row.editorial_status,
+      visiblePubliquement: row.status === 'published',
+    },
+  });
+});
+
+/**
+ * Restauration d'une version antérieure. On ne réécrit pas l'historique :
+ * l'ancien contenu devient une NOUVELLE version, et les droits des acheteurs
+ * ne bougent pas (ils portent sur le chapitre, pas sur un texte donné).
+ */
+adminRoutes.post('/chapters/:id/restore/:versionNo', (req, res) => {
+  const row = db.prepare('SELECT * FROM chapters WHERE id = ?').get(Number(req.params.id));
+  if (!row) return res.status(404).json({ error: 'Chapitre introuvable.' });
+  const version = db
+    .prepare('SELECT * FROM chapter_versions WHERE chapter_id = ? AND version_no = ?')
+    .get(row.id, Number(req.params.versionNo));
+  if (!version) return res.status(404).json({ error: 'Version introuvable.' });
+
+  db.prepare(
+    `UPDATE chapters SET title = ?, text = ?, words = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+  ).run(version.title, version.text, version.words, row.id);
+
+  const numero = enregistrerVersion(
+    row.id,
+    { title: version.title, text: version.text, words: version.words, status: version.status },
+    req.user?.id,
+    `restauration de la version ${version.version_no}`,
+  );
+
+  journaliser(req, 'chapter.restore', 'chapter', row.id,
+    { title: row.title, words: row.words },
+    { titre: version.title, mots: version.words, depuis_version: version.version_no, nouvelle_version: numero });
+
+  res.json({
+    ok: true,
+    restoredFrom: version.version_no,
+    newVersion: numero,
+    chapter: db.prepare('SELECT * FROM chapters WHERE id = ?').get(row.id),
+  });
+});
+
+/** Journal des actions sensibles. */
+adminRoutes.get('/audit', (req, res) => {
+  const limite = Math.min(200, Math.max(1, Number(req.query.limit) || 60));
+  const entrees = db
+    .prepare(
+      `SELECT id, actor_email, action, object, object_id, before_json, after_json, ip, created_at
+         FROM admin_audit_log ORDER BY id DESC LIMIT ?`,
+    )
+    .all(limite);
+  res.json({ entries: entrees });
 });
 
 /**
@@ -268,6 +453,8 @@ adminRoutes.delete('/chapters/:id', (req, res) => {
     .get(row.id);
 
   if (linked.orders > 0) {
+    journaliser(req, 'chapter.delete.refused', 'chapter', row.id,
+      { title: row.title, orders: linked.orders, revenue: linked.revenue }, null);
     return res.status(409).json({
       error:
         `Suppression refusée : ce chapitre figure dans ${linked.orders} commande(s)` +
@@ -282,6 +469,7 @@ adminRoutes.delete('/chapters/:id', (req, res) => {
   }
 
   db.prepare('DELETE FROM chapters WHERE id = ?').run(row.id);
+  journaliser(req, 'chapter.delete', 'chapter', row.id, { title: row.title, number: row.number }, null);
   res.json({ ok: true, deleted: true });
 });
 
@@ -301,6 +489,8 @@ adminRoutes.post('/chapters/:id/archive', (req, res) => {
             archived_reason = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?`,
   ).run(reason, row.id);
+  journaliser(req, 'chapter.archive', 'chapter', row.id,
+    { status: row.status, editorial: row.editorial_status }, { status: 'draft', editorial: 'draft', reason });
   res.json({
     ok: true,
     archived: true,
@@ -316,6 +506,7 @@ adminRoutes.post('/chapters/:id/unarchive', (req, res) => {
         SET archived_at = NULL, archived_reason = '', updated_at = CURRENT_TIMESTAMP
       WHERE id = ?`,
   ).run(row.id);
+  journaliser(req, 'chapter.unarchive', 'chapter', row.id, { archived_at: row.archived_at }, { archived_at: null });
   res.json({
     ok: true,
     restored: true,
@@ -490,8 +681,11 @@ adminRoutes.post('/orders/:id/validate', (req, res) => {
     return res.status(400).json({ error: 'Un paiement automatique ne peut pas être validé à la main.' });
   }
   const accessDays = Math.max(1, Number(getSettings().accessDays) || 30);
+  /* v55 : un achat de chapitre est définitif ; expires_at reste NULL. */
+  const permanentAccess = process.env.PURCHASE_ACCESS !== 'days';
+  const expiration = permanentAccess ? 'NULL' : `date('now', '+${accessDays} days')`;
   db.prepare(`UPDATE orders SET status = 'paid', validated_at = CURRENT_TIMESTAMP,
-              expires_at = date('now', '+${accessDays} days'),
+              expires_at = ${expiration},
               verification_status = 'verified',
               channel = COALESCE(NULLIF(channel, ''), 'WEB_PAYMENT'),
               provider = CASE method
@@ -511,8 +705,8 @@ adminRoutes.post('/orders/:id/validate', (req, res) => {
       if (ch.id !== row.chapter_id) {
         db.prepare(`
           INSERT INTO orders (reference, user_id, book_id, chapter_id, amount_xof, method, status, validated_at, expires_at, note)
-          VALUES (?, ?, ?, ?, 0, ?, 'paid', CURRENT_TIMESTAMP, date('now', '+${accessDays} days'), 'Inclus dans Intégrale')
-          ON CONFLICT(reference) DO UPDATE SET status = 'paid', validated_at = CURRENT_TIMESTAMP, expires_at = date('now', '+${accessDays} days')
+          VALUES (?, ?, ?, ?, 0, ?, 'paid', CURRENT_TIMESTAMP, ${expiration}, 'Inclus dans Intégrale')
+          ON CONFLICT(reference) DO UPDATE SET status = 'paid', validated_at = CURRENT_TIMESTAMP, expires_at = ${expiration}
         `).run(`${row.reference}-CH${ch.id}`, row.user_id, row.book_id, ch.id, row.method);
       }
     }

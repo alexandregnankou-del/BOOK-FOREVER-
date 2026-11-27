@@ -890,3 +890,165 @@ test('v54 — un lecteur ne voit ni ne supprime les marque-pages d’un autre', 
   const toujours = await reader('/api/me/bookmarks?bookSlug=amour-perdu');
   assert.ok(toujours.json.bookmarks.some((m) => m.id === id), 'le marque-page du lecteur est intact');
 });
+
+/* ---------------------------------------------------------------------------
+   v55 — Phase 9 : édition éditoriale.
+   Versions de chapitre, aperçu, statuts DRAFT/REVIEW/PUBLISHED/ARCHIVED,
+   journal des actions sensibles, et achat définitif.
+--------------------------------------------------------------------------- */
+
+async function chapitreBrouillon() {
+  const books = await admin('/api/admin/books');
+  const book = books.json.books.find((b) => b.slug === 'les-larmes-d-une-plume');
+  const cree = await admin(`/api/admin/books/${book.id}/chapters`, {
+    method: 'POST',
+    body: { title: 'Brouillon de test', text: 'Version une du texte, jamais publiée.', publish: false },
+  });
+  assert.equal(cree.status, 201);
+  return { book, chapter: cree.json.chapter };
+}
+
+test('v55 — versions : chaque enregistrement est conservé, la restauration ne perd rien', async () => {
+  const { chapter } = await chapitreBrouillon();
+
+  const v1 = await admin(`/api/admin/chapters/${chapter.id}/versions`);
+  assert.equal(v1.status, 200);
+  assert.equal(v1.json.versions.length, 1, 'la création enregistre la version 1');
+  assert.equal(v1.json.versions[0].version_no, 1);
+
+  await admin(`/api/admin/chapters/${chapter.id}`, {
+    method: 'PATCH',
+    body: { text: 'Version deux du texte, corrigée.' },
+  });
+  await admin(`/api/admin/chapters/${chapter.id}`, {
+    method: 'PATCH',
+    body: { text: 'Version trois du texte, remaniée.' },
+  });
+
+  const v3 = await admin(`/api/admin/chapters/${chapter.id}/versions`);
+  assert.equal(v3.json.versions.length, 3);
+  assert.equal(v3.json.versions[0].version_no, 3);
+
+  // Restauration de la version 1 : elle devient une NOUVELLE version.
+  const retour = await admin(`/api/admin/chapters/${chapter.id}/restore/1`, { method: 'POST' });
+  assert.equal(retour.status, 200);
+  assert.equal(retour.json.restoredFrom, 1);
+  assert.equal(retour.json.newVersion, 4);
+  assert.equal(retour.json.chapter.text, 'Version une du texte, jamais publiée.');
+
+  const v4 = await admin(`/api/admin/chapters/${chapter.id}/versions`);
+  assert.equal(v4.json.versions.length, 4, 'l’historique n’est jamais écrasé');
+
+  await admin(`/api/admin/chapters/${chapter.id}`, { method: 'DELETE' });
+});
+
+test('v55 — aperçu : un brouillon est lisible par l’admin, jamais par le public', async () => {
+  const { book, chapter } = await chapitreBrouillon();
+
+  const apercu = await admin(`/api/admin/chapters/${chapter.id}/preview`);
+  assert.equal(apercu.status, 200);
+  assert.equal(apercu.json.preview, true);
+  assert.equal(apercu.json.chapter.text, 'Version une du texte, jamais publiée.');
+  assert.equal(apercu.json.chapter.visiblePubliquement, false);
+
+  const public404 = await anon(`/api/books/${book.slug}/chapters/${chapter.number}`);
+  assert.equal(public404.status, 404, 'un brouillon n’est jamais visible au public');
+
+  const lecteurRefuse = await reader(`/api/admin/chapters/${chapter.id}/preview`);
+  assert.equal(lecteurRefuse.status, 403, 'un lecteur n’a pas accès à l’aperçu');
+
+  await admin(`/api/admin/chapters/${chapter.id}`, { method: 'DELETE' });
+});
+
+test('v55 — statuts éditoriaux : review et archived ne publient rien', async () => {
+  const { book, chapter } = await chapitreBrouillon();
+
+  const review = await admin(`/api/admin/chapters/${chapter.id}`, {
+    method: 'PATCH',
+    body: { editorialStatus: 'review' },
+  });
+  assert.equal(review.status, 200);
+  assert.equal(review.json.chapter.editorial_status, 'review');
+  assert.equal(review.json.chapter.status, 'draft', 'review ne rend pas le chapitre public');
+  assert.equal((await anon(`/api/books/${book.slug}/chapters/${chapter.number}`)).status, 404);
+
+  const publie = await admin(`/api/admin/chapters/${chapter.id}`, {
+    method: 'PATCH',
+    body: { editorialStatus: 'published' },
+  });
+  assert.equal(publie.json.chapter.status, 'published');
+  /* 200 pour un chapitre gratuit, 402 pour un chapitre payant : dans les deux
+     cas il est visible. Ce qui compte, c'est qu'il ne soit plus 404. */
+  const visible = await anon(`/api/books/${book.slug}/chapters/${chapter.number}`);
+  assert.notEqual(visible.status, 404, 'un chapitre publié est visible');
+
+  const archive = await admin(`/api/admin/chapters/${chapter.id}`, {
+    method: 'PATCH',
+    body: { editorialStatus: 'archived' },
+  });
+  assert.equal(archive.json.chapter.editorial_status, 'archived');
+  assert.equal(archive.json.chapter.status, 'draft');
+  assert.equal((await anon(`/api/books/${book.slug}/chapters/${chapter.number}`)).status, 404);
+
+  const invalide = await admin(`/api/admin/chapters/${chapter.id}`, {
+    method: 'PATCH',
+    body: { editorialStatus: 'en-cours-de-finition' },
+  });
+  assert.equal(invalide.status, 400);
+  assert.deepEqual(invalide.json.accepted, ['draft', 'review', 'published', 'archived']);
+
+  await admin(`/api/admin/chapters/${chapter.id}`, { method: 'DELETE' });
+});
+
+test('v55 — journal : les actions sensibles sont tracées', async () => {
+  const { chapter } = await chapitreBrouillon();
+  await admin(`/api/admin/chapters/${chapter.id}`, {
+    method: 'PATCH',
+    body: { text: 'Texte modifié pour laisser une trace.' },
+  });
+  await admin(`/api/admin/chapters/${chapter.id}`, { method: 'DELETE' });
+
+  const journal = await admin('/api/admin/audit?limit=50');
+  assert.equal(journal.status, 200);
+  const actions = journal.json.entries.map((e) => e.action);
+  assert.ok(actions.includes('chapter.create'));
+  assert.ok(actions.includes('chapter.update'));
+  assert.ok(actions.includes('chapter.delete'));
+  const suppression = journal.json.entries.find((e) => e.action === 'chapter.delete');
+  assert.ok(suppression.actor_email, 'l’auteur de l’action est enregistré');
+  assert.ok(suppression.before_json.includes('Brouillon'), 'l’état avant est conservé');
+
+  const lecteur = await reader('/api/admin/audit');
+  assert.equal(lecteur.status, 403, 'le journal n’est pas lisible par un lecteur');
+});
+
+test('v55 — un achat de chapitre est définitif', async () => {
+  const c = await nouveauLecteur();
+  const order = await commandeEnAttente(c, 13);
+
+  const charge = {
+    type: 'checkout.session.completed',
+    data: { object: { client_reference: order.reference, amount: 300, currency: 'XOF' } },
+  };
+  const hook = await posterWebhook('/api/payments/webhook/wave', charge, signatureWave(JSON.stringify(charge)));
+  assert.equal(hook.status, 200);
+  assert.equal(hook.json.paid, true);
+
+  const achats = await c('/api/me/purchases');
+  const ligne = achats.json.purchases.find((p) => p.chapter?.number === 13);
+  assert.equal(ligne.status, 'paid');
+
+  /* Preuve côté base : la commande ne porte aucune échéance. */
+  const commandes = await admin('/api/admin/orders');
+  const brute = commandes.json.orders.find((o) => o.reference === order.reference);
+  assert.equal(brute.status, 'paid');
+  assert.equal(brute.expires_at, null, 'expires_at reste NULL : accès durable');
+
+  const recus = await c('/api/me/receipts');
+  const recu = recus.json.receipts.find((r) => r.chapterNumber === 13);
+  assert.equal(recu.accessType, 'chapter_permanent');
+  assert.equal(recu.expiresAt, '');
+
+  const acces = await c('/api/books/amour-perdu/chapters/13');
+  assert.equal(acces.json.locked, false);
+});

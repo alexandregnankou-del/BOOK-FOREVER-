@@ -71,8 +71,8 @@ export const CONTEST = {
   directPlaces: Number(process.env.CONTEST_PLACES || 20),
 };
 
-export const APP_VERSION = '1.54.0';
-export const APP_RELEASE = 'v54';
+export const APP_VERSION = '1.55.0';
+export const APP_RELEASE = 'v55';
 
 /* En production, on refuse de démarrer avec les valeurs de secours : un secret
    JWT par défaut permettrait de forger un jeton administrateur. */
